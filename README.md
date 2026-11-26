@@ -1,4 +1,12 @@
-# TypePHP (`tphpc`)
+<p align="center">
+  <img src="docs/assets/banner.jpg" alt="TypePHP Banner" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/logo.jpg" alt="TypePHP Logo" width="110" />
+</p>
+
+<h1 align="center">TypePHP (<code>tphpc</code>)</h1>
 
 **TypePHP** là ngôn ngữ lập trình kiểu tĩnh mạnh (lấy cảm hứng từ TypeScript) giữ nguyên phong cách cú pháp **PHP** và biên dịch sang mã **PHP 8.1–8.4** (`declare(strict_types=1);`) an toàn, tối ưu hiệu suất, chuẩn **PSR-12** và vượt qua **PHPStan Level 9**.
 
