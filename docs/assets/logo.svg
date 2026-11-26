@@ -1,64 +1,55 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <defs>
     <linearGradient id="mintGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6EE7B7" />
+      <stop offset="0%" stop-color="#A7F3D0" />
       <stop offset="50%" stop-color="#2DD4BF" />
-      <stop offset="100%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#059669" />
     </linearGradient>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0F172A" />
-      <stop offset="100%" stop-color="#06121E" />
+      <stop offset="0%" stop-color="#0B1628" />
+      <stop offset="100%" stop-color="#051118" />
     </linearGradient>
   </defs>
 
-  <!-- Rounded dark slate-teal badge -->
-  <rect x="8" y="8" width="240" height="240" rx="48" fill="url(#bgGrad)" stroke="#2DD4BF" stroke-opacity="0.35" stroke-width="3" />
+  <!-- Angular chamfered octagonal badge -->
+  <polygon points="36,8 220,8 248,36 248,220 220,248 36,248 8,220 8,36"
+           fill="url(#bgGrad)" stroke="#2DD4BF" stroke-opacity="0.55" stroke-width="4" />
 
-  <!-- Letter T forming the elephant's back and hind/front pillar legs -->
-  <!-- T Top Bar (Elephant back) + T Stem (Leg) -->
-  <path d="M 46 84
-           C 46 72, 56 64, 68 64
-           L 132 64
-           L 132 88
-           L 104 88
-           L 104 184
-           C 104 191, 98 196, 91 196
-           L 81 196
-           C 74 196, 68 191, 68 184
-           L 68 106
-           C 56 108, 46 120, 44 136
-           C 42 120, 44 98, 46 84 Z"
-        fill="url(#mintGrad)" />
+  <!-- Inner angular accent corner lines -->
+  <polyline points="22,52 22,22 52,22" fill="none" stroke="#6EE7B7" stroke-opacity="0.4" stroke-width="2" />
+  <polyline points="204,234 234,234 234,204" fill="none" stroke="#6EE7B7" stroke-opacity="0.4" stroke-width="2" />
 
-  <!-- Subtle elephant tail curl on left of T -->
-  <path d="M 48 92 C 34 96, 30 112, 36 124"
-        fill="none" stroke="#6EE7B7" stroke-width="7" stroke-linecap="round" />
+  <!-- Angular Tail (left of T) -->
+  <polygon points="32,82 46,68 46,112 32,126" fill="#6EE7B7" />
 
-  <!-- Letter P forming the elephant's ear, head, and raised trunk -->
-  <path d="M 124 64
-           L 164 64
-           C 192 64, 212 82, 212 108
-           C 212 132, 194 148, 168 148
-           L 148 148
-           L 148 184
-           C 148 191, 142 196, 135 196
-           L 127 196
-           C 120 196, 114 191, 114 184
-           L 114 74
-           C 114 68, 118 64, 124 64 Z
-           M 148 88
-           L 148 124
-           L 164 124
-           C 178 124, 186 117, 186 106
-           C 186 95, 178 88, 164 88 Z"
+  <!-- Angular Letter T (Elephant Back + Front Pillar Leg) -->
+  <polygon points="52,64 134,64 134,90 104,90 104,192 74,192 74,90 52,90"
+           fill="url(#mintGrad)" />
+
+  <!-- Angular Letter P (Elephant Head + Ear Cutout) -->
+  <path d="M 122,64
+           L 186,64
+           L 204,82
+           L 204,132
+           L 186,150
+           L 150,150
+           L 150,192
+           L 122,192 Z
+           M 150,88
+           L 150,126
+           L 174,126
+           L 180,120
+           L 180,94
+           L 174,88 Z"
         fill="url(#mintGrad)" fill-rule="evenodd" />
 
-  <!-- Raised Elephant Trunk extending from the P bowl -->
-  <path d="M 196 120
-           C 222 120, 232 102, 224 82
-           C 220 72, 210 70, 206 76"
-        fill="none" stroke="#6EE7B7" stroke-width="14" stroke-linecap="round" />
+  <!-- Angular Raised Elephant Trunk (90/45-degree geometric segments) -->
+  <polygon points="198,118 224,118 232,110 232,72 218,58 204,58 204,76 214,76 214,102 198,102"
+           fill="#6EE7B7" />
 
-  <!-- Elephant Eye -->
-  <circle cx="176" cy="96" r="5" fill="#0B1320" />
+  <!-- Angular Tusk -->
+  <polygon points="186,144 206,154 196,162 178,150" fill="#A7F3D0" />
+
+  <!-- Diamond Elephant Eye -->
+  <polygon points="165,98 171,92 177,98 171,104" fill="#07111E" />
 </svg>

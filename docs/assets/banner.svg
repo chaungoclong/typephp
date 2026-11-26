@@ -1,38 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360">
   <defs>
     <linearGradient id="bannerBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#07111E" />
-      <stop offset="55%" stop-color="#0B192C" />
-      <stop offset="100%" stop-color="#082428" />
+      <stop offset="0%" stop-color="#06101D" />
+      <stop offset="55%" stop-color="#0A1B2E" />
+      <stop offset="100%" stop-color="#072626" />
     </linearGradient>
     <linearGradient id="mint" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#A7F3D0" />
       <stop offset="50%" stop-color="#2DD4BF" />
-      <stop offset="100%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#059669" />
     </linearGradient>
-    <radialGradient id="glow" cx="25%" cy="50%" r="45%">
+    <radialGradient id="glow" cx="22%" cy="50%" r="45%">
       <stop offset="0%" stop-color="#2DD4BF" stop-opacity="0.22" />
       <stop offset="100%" stop-color="#2DD4BF" stop-opacity="0" />
     </radialGradient>
     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#2DD4BF" stroke-opacity="0.07" stroke-width="1" />
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#2DD4BF" stroke-opacity="0.08" stroke-width="1" />
     </pattern>
   </defs>
 
-  <!-- Background + Grid + Glow -->
-  <rect width="1200" height="360" rx="20" fill="url(#bannerBg)" />
-  <rect width="1200" height="360" rx="20" fill="url(#grid)" />
-  <rect width="1200" height="360" rx="20" fill="url(#glow)" />
-  <rect x="2" y="2" width="1196" height="356" rx="18" fill="none" stroke="#2DD4BF" stroke-opacity="0.25" stroke-width="2" />
+  <!-- Angular chamfered outer frame -->
+  <polygon points="24,0 1176,0 1200,24 1200,336 1176,360 24,360 0,336 0,24" fill="url(#bannerBg)" />
+  <polygon points="24,0 1176,0 1200,24 1200,336 1176,360 24,360 0,336 0,24" fill="url(#grid)" />
+  <polygon points="24,0 1176,0 1200,24 1200,336 1176,360 24,360 0,336 0,24" fill="url(#glow)" />
+  <polygon points="26,2 1174,2 1198,26 1198,334 1174,358 26,358 2,334 2,26"
+           fill="none" stroke="#2DD4BF" stroke-opacity="0.35" stroke-width="2" />
 
-  <!-- Mint Elephant TP Emblem on the Left -->
+  <!-- Angular geometric accent bars on top-right -->
+  <polygon points="960,24 1160,24 1144,34 944,34" fill="#2DD4BF" fill-opacity="0.35" />
+  <polygon points="1020,42 1160,42 1148,50 1008,50" fill="#6EE7B7" fill-opacity="0.25" />
+
+  <!-- Angular Mint Elephant TP Emblem on the Left -->
   <g transform="translate(88, 52)">
-    <rect x="0" y="0" width="256" height="256" rx="48" fill="#0B1320" stroke="#2DD4BF" stroke-opacity="0.4" stroke-width="3" />
-    <path d="M 46 84 C 46 72, 56 64, 68 64 L 132 64 L 132 88 L 104 88 L 104 184 C 104 191, 98 196, 91 196 L 81 196 C 74 196, 68 191, 68 184 L 68 106 C 56 108, 46 120, 44 136 C 42 120, 44 98, 46 84 Z" fill="url(#mint)" />
-    <path d="M 48 92 C 34 96, 30 112, 36 124" fill="none" stroke="#6EE7B7" stroke-width="7" stroke-linecap="round" />
-    <path d="M 124 64 L 164 64 C 192 64, 212 82, 212 108 C 212 132, 194 148, 168 148 L 148 148 L 148 184 C 148 191, 142 196, 135 196 L 127 196 C 120 196, 114 191, 114 184 L 114 74 C 114 68, 118 64, 124 64 Z M 148 88 L 148 124 L 164 124 C 178 124, 186 117, 186 106 C 186 95, 178 88, 164 88 Z" fill="url(#mint)" fill-rule="evenodd" />
-    <path d="M 196 120 C 222 120, 232 102, 224 82 C 220 72, 210 70, 206 76" fill="none" stroke="#6EE7B7" stroke-width="14" stroke-linecap="round" />
-    <circle cx="176" cy="96" r="5" fill="#0B1320" />
+    <polygon points="36,8 220,8 248,36 248,220 220,248 36,248 8,220 8,36"
+             fill="#07111E" stroke="#2DD4BF" stroke-opacity="0.55" stroke-width="4" />
+    <polygon points="32,82 46,68 46,112 32,126" fill="#6EE7B7" />
+    <polygon points="52,64 134,64 134,90 104,90 104,192 74,192 74,90 52,90" fill="url(#mint)" />
+    <path d="M 122,64 L 186,64 L 204,82 L 204,132 L 186,150 L 150,150 L 150,192 L 122,192 Z M 150,88 L 150,126 L 174,126 L 180,120 L 180,94 L 174,88 Z"
+          fill="url(#mint)" fill-rule="evenodd" />
+    <polygon points="198,118 224,118 232,110 232,72 218,58 204,58 204,76 214,76 214,102 198,102" fill="#6EE7B7" />
+    <polygon points="186,144 206,154 196,162 178,150" fill="#A7F3D0" />
+    <polygon points="165,98 171,92 177,98 171,104" fill="#07111E" />
   </g>
 
   <!-- Typography -->
@@ -44,18 +52,18 @@
     Statically Typed PHP  •  Rust Compiler  •  PHPStan Level 9
   </text>
 
-  <!-- Feature Pills -->
+  <!-- Angular Chamfered Feature Tags -->
   <g transform="translate(404, 248)">
-    <rect x="0" y="0" width="142" height="36" rx="18" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.45" />
-    <text x="71" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">PHP 8.1 – 8.4</text>
+    <polygon points="10,0 138,0 148,10 148,26 138,36 10,36 0,26 0,10" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.5" />
+    <text x="74" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">PHP 8.1 – 8.4</text>
 
-    <rect x="158" y="0" width="124" height="36" rx="18" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.45" />
-    <text x="220" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">Generics</text>
+    <polygon points="174,0 278,0 288,10 288,26 278,36 174,36 164,26 164,10" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.5" />
+    <text x="226" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">Generics</text>
 
-    <rect x="298" y="0" width="150" height="36" rx="18" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.45" />
-    <text x="373" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">PSR-7 &amp; PSR-12</text>
+    <polygon points="314,0 448,0 458,10 458,26 448,36 314,36 304,26 304,10" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.5" />
+    <text x="381" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">PSR-7 &amp; PSR-12</text>
 
-    <rect x="464" y="0" width="146" height="36" rx="18" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.45" />
-    <text x="537" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">Bundle &amp; Minify</text>
+    <polygon points="484,0 618,0 628,10 628,26 618,36 484,36 474,26 474,10" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.5" />
+    <text x="551" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">Bundle &amp; Minify</text>
   </g>
 </svg>
