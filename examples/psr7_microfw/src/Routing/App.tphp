@@ -1,0 +1,92 @@
+<?php
+
+namespace TypePhp\MicroFw\Routing;
+
+import { ServerRequestInterface } from '../Http/Message/ServerRequestInterface.tphp';
+import { ResponseInterface } from '../Http/Message/ResponseInterface.tphp';
+import { Response } from '../Http/Message/Response.tphp';
+import { StringStream } from '../Http/Message/StringStream.tphp';
+
+use TypePhp\MicroFw\Http\Message\ServerRequestInterface;
+use TypePhp\MicroFw\Http\Message\ResponseInterface;
+use TypePhp\MicroFw\Http\Message\Response;
+use TypePhp\MicroFw\Http\Message\StringStream;
+
+type Handler = (ServerRequestInterface) => ResponseInterface;
+type Middleware = (ServerRequestInterface, Handler) => ResponseInterface;
+
+type Route = {
+    method: string,
+    path: string,
+    handler: Handler,
+};
+
+class App {
+    private Route[] $routes;
+    private Middleware[] $middlewares;
+
+    public function __construct() {
+        $this->routes = [];
+        $this->middlewares = [];
+    }
+
+    public function addMiddleware(Middleware $mw): void {
+        array_push($this->middlewares, $mw);
+    }
+
+    public function get(string $path, Handler $handler): void {
+        $route: Route = ['method' => 'GET', 'path' => $path, 'handler' => $handler];
+        array_push($this->routes, $route);
+    }
+
+    public function post(string $path, Handler $handler): void {
+        $route: Route = ['method' => 'POST', 'path' => $path, 'handler' => $handler];
+        array_push($this->routes, $route);
+    }
+
+    public function put(string $path, Handler $handler): void {
+        $route: Route = ['method' => 'PUT', 'path' => $path, 'handler' => $handler];
+        array_push($this->routes, $route);
+    }
+
+    public function delete(string $path, Handler $handler): void {
+        $route: Route = ['method' => 'DELETE', 'path' => $path, 'handler' => $handler];
+        array_push($this->routes, $route);
+    }
+
+    public function handle(ServerRequestInterface $req): ResponseInterface {
+        $coreHandler: Handler = fn(ServerRequestInterface $r): ResponseInterface => $this->dispatch($r);
+
+        $pipeline: Handler = $coreHandler;
+        foreach ($this->middlewares as $mw) {
+            $next: Handler = $pipeline;
+            $currentMw: Middleware = $mw;
+            $pipeline = fn(ServerRequestInterface $r): ResponseInterface => $currentMw($r, $next);
+        }
+
+        return $pipeline($req);
+    }
+
+    private function dispatch(ServerRequestInterface $req): ResponseInterface {
+        $method: string = $req->getMethod();
+        $path: string = $req->getUri()->getPath();
+
+        foreach ($this->routes as $route) {
+            if ($route['method'] === $method && $route['path'] === $path) {
+                $h: Handler = $route['handler'];
+                return $h($req);
+            }
+        }
+
+        $stream = new StringStream((string) json_encode(['ok' => false, 'error' => 'Route not found']));
+        return new Response(404, ['content-type' => 'application/json; charset=utf-8'], $stream);
+    }
+
+    public function emit(ResponseInterface $res): void {
+        http_response_code($res->getStatusCode());
+        foreach ($res->getHeaders() as $name => $val) {
+            header($name . ': ' . $val);
+        }
+        echo $res->getBody()->getContents();
+    }
+}

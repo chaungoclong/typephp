@@ -1,0 +1,67 @@
+<?php
+
+type UserShape = {
+    id: int,
+    name: string,
+    email?: string,
+};
+
+interface Printable {
+    public function summary(): string;
+}
+
+enum Role: string {
+    case Admin = 'admin';
+    case Member = 'member';
+}
+
+class Box<T> {
+    private T $value;
+
+    public function __construct(T $value) {
+        $this->value = $value;
+    }
+
+    public function get(): T {
+        return $this->value;
+    }
+}
+
+class Account implements Printable {
+    public string $username;
+    public Role $role;
+
+    public function __construct(string $username, Role $role) {
+        $this->username = $username;
+        $this->role = $role;
+    }
+
+    public function summary(): string {
+        return $this->username;
+    }
+}
+
+function identity<T>(T $x): T {
+    return $x;
+}
+
+function formatId(int|string|null $id): string {
+    if ($id === null) {
+        return "none";
+    }
+    if (is_int($id)) {
+        $num: int = $id;
+        return "ID#" . (string)$num;
+    }
+    return $id;
+}
+
+$count: int = identity<int>(42);
+$box = new Box<string>("TypePHP");
+$title: string = $box->get();
+
+$user: UserShape = ['id' => 1, 'name' => 'Long'];
+$acc = new Account($user['name'], Role::Admin);
+
+$double = fn(int $n): int => $n * 2;
+$res: int = $double($count);

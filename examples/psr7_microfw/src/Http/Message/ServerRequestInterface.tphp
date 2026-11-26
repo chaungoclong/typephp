@@ -1,0 +1,12 @@
+<?php
+
+namespace TypePhp\MicroFw\Http\Message;
+
+import { RequestInterface } from './RequestInterface.tphp';
+
+interface ServerRequestInterface extends RequestInterface {
+    public function getQueryParams(): dict<string, mixed>;
+    public function getParsedBody(): mixed;
+    public function getAttribute(string $name): mixed;
+    public function withAttribute(string $name, mixed $value): ServerRequestInterface;
+}

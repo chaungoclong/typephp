@@ -1,0 +1,11 @@
+<?php
+
+namespace TypePhp\MicroFw\Http\Message;
+
+import { MessageInterface } from './MessageInterface.tphp';
+import { UriInterface } from './UriInterface.tphp';
+
+interface RequestInterface extends MessageInterface {
+    public function getMethod(): string;
+    public function getUri(): UriInterface;
+}

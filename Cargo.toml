@@ -1,0 +1,9 @@
+[package]
+name = "typephp"
+version = "0.1.0"
+edition = "2021"
+description = "TypePHP (tphpc) - A TypeScript-like statically typed language compiler targeting PHP 8.4"
+
+[[bin]]
+name = "tphpc"
+path = "src/main.rs"

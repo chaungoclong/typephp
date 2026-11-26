@@ -1,0 +1,4 @@
+/target/
+**/vendor/
+**/*.db
+.DS_Store

@@ -1,0 +1,9 @@
+<?php
+
+namespace TypePhp\MicroFw\Http\Message;
+
+interface StreamInterface {
+    public function __toString(): string;
+    public function getContents(): string;
+    public function getSize(): int;
+}

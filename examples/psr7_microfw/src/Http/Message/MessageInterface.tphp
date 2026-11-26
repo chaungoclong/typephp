@@ -1,0 +1,15 @@
+<?php
+
+namespace TypePhp\MicroFw\Http\Message;
+
+import { StreamInterface } from './StreamInterface.tphp';
+
+interface MessageInterface {
+    public function getProtocolVersion(): string;
+    public function getHeaders(): dict<string, string>;
+    public function hasHeader(string $name): bool;
+    public function getHeaderLine(string $name): string;
+    public function withHeader(string $name, string $value): MessageInterface;
+    public function getBody(): StreamInterface;
+    public function withBody(StreamInterface $body): MessageInterface;
+}

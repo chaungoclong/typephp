@@ -1,0 +1,190 @@
+<?php
+
+type ApiResponse<T> = {
+    ok: bool,
+    data: T,
+};
+
+type ErrorResponse = {
+    ok: bool,
+    error: string,
+};
+
+function sendJson<T>(int $status, T $payload): void {
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($payload);
+}
+
+function sendError(int $status, string $message): void {
+    $err: ErrorResponse = [
+        'ok' => false,
+        'error' => $message,
+    ];
+    sendJson<ErrorResponse>($status, $err);
+}
+
+class TaskRepository {
+    private PDO $pdo;
+
+    public function __construct(string $dbPath) {
+        $this->pdo = new PDO('sqlite:' . $dbPath);
+        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->pdo->exec(
+            'CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )'
+        );
+    }
+
+    public function findAll(): array<mixed> {
+        $stmt: PDOStatement = $this->pdo->query('SELECT id, title, completed, created_at FROM tasks ORDER BY id DESC');
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function findById(int $id): mixed {
+        $stmt: PDOStatement = $this->pdo->prepare('SELECT id, title, completed, created_at FROM tasks WHERE id = ?');
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function create(string $title): mixed {
+        $stmt: PDOStatement = $this->pdo->prepare('INSERT INTO tasks (title, completed) VALUES (?, 0)');
+        $stmt->execute([$title]);
+        $newId: int = intval($this->pdo->lastInsertId());
+        return $this->findById($newId);
+    }
+
+    public function update(int $id, string $title, int $completed): bool {
+        $stmt: PDOStatement = $this->pdo->prepare('UPDATE tasks SET title = ?, completed = ? WHERE id = ?');
+        $stmt->execute([$title, $completed, $id]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function delete(int $id): bool {
+        $stmt: PDOStatement = $this->pdo->prepare('DELETE FROM tasks WHERE id = ?');
+        $stmt->execute([$id]);
+        return $stmt->rowCount() > 0;
+    }
+}
+
+function readJsonBody(): mixed {
+    $raw: string = file_get_contents('php://input');
+    if (trim($raw) === '') {
+        return [];
+    }
+    return json_decode($raw, true);
+}
+
+$repo = new TaskRepository(__DIR__ . '/tasks.db');
+
+$method: string = strtoupper(strval($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+$uri: string = strval($_SERVER['REQUEST_URI'] ?? '/tasks');
+$rawPath: string = strval(parse_url($uri, PHP_URL_PATH));
+$trimmed: string = trim($rawPath, '/');
+$segments: string[] = explode('/', $trimmed);
+
+if ($trimmed === '' || $segments[0] !== 'tasks') {
+    sendError(404, 'Endpoint not found. Use /tasks or /tasks/{id}');
+    return;
+}
+
+$segCount: int = count($segments);
+
+if ($segCount === 1) {
+    if ($method === 'GET') {
+        $tasks: array<mixed> = $repo->findAll();
+        $res: ApiResponse<array<mixed>> = [
+            'ok' => true,
+            'data' => $tasks,
+        ];
+        sendJson<ApiResponse<array<mixed>>>(200, $res);
+    } elseif ($method === 'POST') {
+        $body: mixed = readJsonBody();
+        if (!is_array($body) || !array_key_exists('title', $body)) {
+            sendError(400, 'Field "title" is required');
+            return;
+        }
+        $title: string = trim(strval($body['title']));
+        if ($title === '') {
+            sendError(400, 'Field "title" cannot be empty');
+            return;
+        }
+        $created: mixed = $repo->create($title);
+        $res: ApiResponse<mixed> = [
+            'ok' => true,
+            'data' => $created,
+        ];
+        sendJson<ApiResponse<mixed>>(201, $res);
+    } else {
+        sendError(405, 'Method not allowed');
+    }
+} elseif ($segCount === 2) {
+    $id: int = intval($segments[1]);
+    if ($id <= 0) {
+        sendError(400, 'Invalid task ID');
+        return;
+    }
+
+    if ($method === 'GET') {
+        $task: mixed = $repo->findById($id);
+        if ($task === false) {
+            sendError(404, 'Task not found');
+            return;
+        }
+        $res: ApiResponse<mixed> = [
+            'ok' => true,
+            'data' => $task,
+        ];
+        sendJson<ApiResponse<mixed>>(200, $res);
+    } elseif ($method === 'PUT') {
+        $existing: mixed = $repo->findById($id);
+        if ($existing === false) {
+            sendError(404, 'Task not found');
+            return;
+        }
+        $body: mixed = readJsonBody();
+        if (!is_array($body)) {
+            sendError(400, 'Invalid JSON body');
+            return;
+        }
+        $title: string = strval($existing['title']);
+        if (array_key_exists('title', $body)) {
+            $title = trim(strval($body['title']));
+        }
+        $completed: int = intval($existing['completed']);
+        if (array_key_exists('completed', $body)) {
+            $completed = intval($body['completed']);
+        }
+
+        if ($title === '') {
+            sendError(400, 'Field "title" cannot be empty');
+            return;
+        }
+        $repo->update($id, $title, $completed);
+        $updated: mixed = $repo->findById($id);
+        $res: ApiResponse<mixed> = [
+            'ok' => true,
+            'data' => $updated,
+        ];
+        sendJson<ApiResponse<mixed>>(200, $res);
+    } elseif ($method === 'DELETE') {
+        $deleted: bool = $repo->delete($id);
+        if (!$deleted) {
+            sendError(404, 'Task not found');
+            return;
+        }
+        $res: ApiResponse<string> = [
+            'ok' => true,
+            'data' => 'Deleted',
+        ];
+        sendJson<ApiResponse<string>>(200, $res);
+    } else {
+        sendError(405, 'Method not allowed');
+    }
+} else {
+    sendError(404, 'Endpoint not found');
+}

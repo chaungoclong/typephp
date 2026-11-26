@@ -1,0 +1,37 @@
+name: TypePHP CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup PHP 8.4 & Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, json
+          tools: composer
+
+      - name: Install Composer dependencies (PHPStan)
+        run: composer --working-dir=examples/psr7_microfw install --no-interaction --prefer-dist
+
+      - name: Run Rust test suite (MC/DC & E2E)
+        run: cargo test
+
+      - name: Compile PSR-7 Micro-Framework + Blog App (PHPStan Level 9)
+        run: cargo run -- examples/blog_app/public/index.tphp
+
+      - name: Verify bundle + minify + PHP syntax
+        run: cargo run -- examples/blog_app/public/index.tphp --bundle --minify -o /tmp/blog.min.php && php -l /tmp/blog.min.php

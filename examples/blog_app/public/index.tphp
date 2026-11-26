@@ -1,0 +1,324 @@
+<?php
+
+import { ServerRequestInterface } from '../../psr7_microfw/src/Http/Message/ServerRequestInterface.tphp';
+import { ResponseInterface } from '../../psr7_microfw/src/Http/Message/ResponseInterface.tphp';
+import { ServerRequest } from '../../psr7_microfw/src/Http/Message/ServerRequest.tphp';
+import { Response } from '../../psr7_microfw/src/Http/Message/Response.tphp';
+import { StringStream } from '../../psr7_microfw/src/Http/Message/StringStream.tphp';
+import { Uri } from '../../psr7_microfw/src/Http/Message/Uri.tphp';
+import { App, Handler } from '../../psr7_microfw/src/Routing/App.tphp';
+import { Validator } from '../../psr7_microfw/src/Validation/Validator.tphp';
+import { ValidationResult } from '../../psr7_microfw/src/Validation/ValidationResult.tphp';
+import { PostRepository } from '../src/Repository/PostRepository.tphp';
+import { Templates } from '../src/View/Templates.tphp';
+
+use TypePhp\MicroFw\Http\Message\ServerRequestInterface;
+use TypePhp\MicroFw\Http\Message\ResponseInterface;
+use TypePhp\MicroFw\Http\Message\ServerRequest;
+use TypePhp\MicroFw\Http\Message\Response;
+use TypePhp\MicroFw\Http\Message\StringStream;
+use TypePhp\MicroFw\Http\Message\Uri;
+use TypePhp\MicroFw\Routing\App;
+use TypePhp\MicroFw\Validation\Validator;
+use TypePhp\MicroFw\Validation\ValidationResult;
+use TypePhp\BlogApp\Repository\PostRepository;
+use TypePhp\BlogApp\View\Templates;
+
+const ADMIN_USER: string = 'admin';
+const ADMIN_PASS: string = 'admin123';
+const SESSION_VALUE: string = 'typephp_admin_authenticated';
+
+function jsonResponse(int $status, mixed $data): ResponseInterface {
+    $stream = new StringStream((string) json_encode($data));
+    return new Response($status, ['content-type' => 'application/json; charset=utf-8'], $stream);
+}
+
+function htmlResponse(int $status, string $html): ResponseInterface {
+    $stream = new StringStream($html);
+    return new Response($status, ['content-type' => 'text/html; charset=utf-8'], $stream);
+}
+
+function redirectResponse(string $location): ResponseInterface {
+    return new Response(302, ['location' => $location], new StringStream(''));
+}
+
+function createServerRequestFromGlobals(): ServerRequestInterface {
+    $method: string = 'GET';
+    $rawMethod: mixed = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    if (is_string($rawMethod)) {
+        $method = strtoupper($rawMethod);
+    }
+    $rawUri: string = '/';
+    $serverUri: mixed = $_SERVER['REQUEST_URI'] ?? '/';
+    if (is_string($serverUri)) {
+        $rawUri = $serverUri;
+    }
+    $path: string = '/';
+    $parsedPath: mixed = parse_url($rawUri, PHP_URL_PATH);
+    if (is_string($parsedPath)) {
+        $path = $parsedPath;
+    }
+    $host: string = 'localhost';
+    $rawHost: mixed = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    if (is_string($rawHost)) {
+        $host = $rawHost;
+    }
+    $headers: dict<string, string> = [];
+    $sessionCookie: mixed = $_COOKIE['blog_admin'] ?? null;
+    if (is_string($sessionCookie)) {
+        $headers['x-session'] = $sessionCookie;
+    }
+    $rawBody: string = (string) file_get_contents('php://input');
+    $parsed: mixed = null;
+    if (trim($rawBody) !== '') {
+        $parsed = json_decode($rawBody, true);
+    }
+    $uri = new Uri('http', $host, $path);
+    $stream = new StringStream($rawBody);
+    return new ServerRequest($method, $uri, $headers, $stream, $_GET, $parsed, []);
+}
+
+function isAuthenticated(ServerRequestInterface $req): bool {
+    return $req->getHeaderLine('x-session') === SESSION_VALUE;
+}
+
+function getQueryInt(ServerRequestInterface $req, string $key): int {
+    $params: dict<string, mixed> = $req->getQueryParams();
+    if (!array_key_exists($key, $params)) {
+        return 0;
+    }
+    $val: mixed = $params[$key];
+    if (is_int($val)) {
+        return $val;
+    }
+    if (is_string($val)) {
+        return intval($val);
+    }
+    return 0;
+}
+
+function authMiddleware(ServerRequestInterface $req, Handler $next): ResponseInterface {
+    $path: string = $req->getUri()->getPath();
+    if ($path === '/admin' && !isAuthenticated($req)) {
+        return redirectResponse('/login');
+    }
+    if (str_starts_with($path, '/api/admin') && !isAuthenticated($req)) {
+        return jsonResponse(401, ['ok' => false, 'error' => 'Chưa đăng nhập Admin']);
+    }
+    return $next($req);
+}
+
+function handleLogin(ServerRequestInterface $req, Validator $validator): ResponseInterface {
+    $res: ValidationResult = $validator->validate($req->getParsedBody(), [
+        'username' => 'required|string',
+        'password' => 'required|string',
+    ]);
+    if (!$res->isValid()) {
+        return jsonResponse(422, ['ok' => false, 'error' => 'Vui lòng nhập đầy đủ tài khoản và mật khẩu']);
+    }
+    $data: dict<string, mixed> = $res->getData();
+    $user: string = '';
+    $rawUser: mixed = $data['username'] ?? null;
+    if (is_string($rawUser)) {
+        $user = $rawUser;
+    }
+    $pass: string = '';
+    $rawPass: mixed = $data['password'] ?? null;
+    if (is_string($rawPass)) {
+        $pass = $rawPass;
+    }
+    if ($user !== ADMIN_USER || $pass !== ADMIN_PASS) {
+        return jsonResponse(401, ['ok' => false, 'error' => 'Sai tên đăng nhập hoặc mật khẩu']);
+    }
+    setcookie('blog_admin', SESSION_VALUE, 0, '/');
+    return jsonResponse(200, ['ok' => true]);
+}
+
+function handleLogout(): ResponseInterface {
+    setcookie('blog_admin', '', 1, '/');
+    return jsonResponse(200, ['ok' => true]);
+}
+
+function handleViewPostHtml(
+    ServerRequestInterface $req,
+    PostRepository $repo,
+    Templates $views
+): ResponseInterface {
+    $id: int = getQueryInt($req, 'id');
+    if ($id <= 0) {
+        return htmlResponse(404, $views->renderPostDetailPage(null));
+    }
+    $post: mixed = $repo->findById($id);
+    if (!is_array($post)) {
+        return htmlResponse(404, $views->renderPostDetailPage(null));
+    }
+    $rawPub: mixed = $post['published'] ?? 0;
+    $pubInt: int = 0;
+    if (is_int($rawPub)) {
+        $pubInt = $rawPub;
+    } elseif (is_string($rawPub)) {
+        $pubInt = intval($rawPub);
+    }
+    if ($pubInt !== 1) {
+        return htmlResponse(404, $views->renderPostDetailPage(null));
+    }
+    return htmlResponse(200, $views->renderPostDetailPage($post));
+}
+
+function handleAdminCreatePost(
+    ServerRequestInterface $req,
+    PostRepository $repo,
+    Validator $validator
+): ResponseInterface {
+    $res: ValidationResult = $validator->validate($req->getParsedBody(), [
+        'title' => 'required|string|min:3|max:150',
+        'slug' => 'required|string|min:3|max:100',
+        'content' => 'required|string|min:10',
+        'published' => 'bool',
+    ]);
+    if (!$res->isValid()) {
+        return jsonResponse(422, ['ok' => false, 'errors' => $res->getErrors()]);
+    }
+    $data: dict<string, mixed> = $res->getData();
+    $title: string = '';
+    $rawTitle: mixed = $data['title'] ?? null;
+    if (is_string($rawTitle)) {
+        $title = $rawTitle;
+    }
+    $slug: string = '';
+    $rawSlug: mixed = $data['slug'] ?? null;
+    if (is_string($rawSlug)) {
+        $slug = $rawSlug;
+    }
+    $content: string = '';
+    $rawContent: mixed = $data['content'] ?? null;
+    if (is_string($rawContent)) {
+        $content = $rawContent;
+    }
+    $published: int = 0;
+    $rawPublished: mixed = $data['published'] ?? false;
+    if ($rawPublished === true) {
+        $published = 1;
+    }
+
+    $created: mixed = $repo->create($title, $slug, $content, $published);
+    return jsonResponse(201, ['ok' => true, 'data' => $created]);
+}
+
+function handleAdminUpdatePost(
+    ServerRequestInterface $req,
+    PostRepository $repo,
+    Validator $validator
+): ResponseInterface {
+    $id: int = getQueryInt($req, 'id');
+    if ($id <= 0) {
+        return jsonResponse(400, ['ok' => false, 'error' => 'Query parameter id is required']);
+    }
+    $existing: mixed = $repo->findById($id);
+    if (!is_array($existing)) {
+        return jsonResponse(404, ['ok' => false, 'error' => 'Post not found']);
+    }
+    $res: ValidationResult = $validator->validate($req->getParsedBody(), [
+        'title' => 'required|string|min:3|max:150',
+        'slug' => 'required|string|min:3|max:100',
+        'content' => 'required|string|min:10',
+        'published' => 'bool',
+    ]);
+    if (!$res->isValid()) {
+        return jsonResponse(422, ['ok' => false, 'errors' => $res->getErrors()]);
+    }
+    $data: dict<string, mixed> = $res->getData();
+    $title: string = '';
+    $rawTitle: mixed = $data['title'] ?? null;
+    if (is_string($rawTitle)) {
+        $title = $rawTitle;
+    }
+    $slug: string = '';
+    $rawSlug: mixed = $data['slug'] ?? null;
+    if (is_string($rawSlug)) {
+        $slug = $rawSlug;
+    }
+    $content: string = '';
+    $rawContent: mixed = $data['content'] ?? null;
+    if (is_string($rawContent)) {
+        $content = $rawContent;
+    }
+    $published: int = 0;
+    $rawPublished: mixed = $data['published'] ?? false;
+    if ($rawPublished === true) {
+        $published = 1;
+    }
+
+    $repo->update($id, $title, $slug, $content, $published);
+    return jsonResponse(200, ['ok' => true, 'data' => $repo->findById($id)]);
+}
+
+function handleAdminDeletePost(ServerRequestInterface $req, PostRepository $repo): ResponseInterface {
+    $id: int = getQueryInt($req, 'id');
+    if ($id <= 0) {
+        return jsonResponse(400, ['ok' => false, 'error' => 'Query parameter id is required']);
+    }
+    if (!$repo->delete($id)) {
+        return jsonResponse(404, ['ok' => false, 'error' => 'Post not found']);
+    }
+    return jsonResponse(200, ['ok' => true, 'data' => 'Deleted']);
+}
+
+function handleLoginPage(ServerRequestInterface $req, Templates $views): ResponseInterface {
+    if (isAuthenticated($req)) {
+        return redirectResponse('/admin');
+    }
+    return htmlResponse(200, $views->renderLoginPage());
+}
+
+$repo = new PostRepository(__DIR__ . '/blog.db');
+$validator = new Validator();
+$views = new Templates();
+$app = new App();
+
+$app->addMiddleware(fn(ServerRequestInterface $req, Handler $next): ResponseInterface =>
+    authMiddleware($req, $next)
+);
+
+// UI Pages (Tailwind CSS)
+$app->get('/', fn(ServerRequestInterface $req): ResponseInterface =>
+    htmlResponse(200, $views->renderBlogPage($repo->findPublished()))
+);
+$app->get('/post', fn(ServerRequestInterface $req): ResponseInterface =>
+    handleViewPostHtml($req, $repo, $views)
+);
+$app->get('/login', fn(ServerRequestInterface $req): ResponseInterface =>
+    handleLoginPage($req, $views)
+);
+$app->get('/admin', fn(ServerRequestInterface $req): ResponseInterface =>
+    htmlResponse(200, $views->renderAdminPage())
+);
+
+// Auth API
+$app->post('/api/login', fn(ServerRequestInterface $req): ResponseInterface =>
+    handleLogin($req, $validator)
+);
+$app->post('/api/logout', fn(ServerRequestInterface $req): ResponseInterface =>
+    handleLogout()
+);
+
+// Blog & Admin JSON API
+$app->get('/api/posts', fn(ServerRequestInterface $req): ResponseInterface =>
+    jsonResponse(200, ['ok' => true, 'data' => $repo->findPublished()])
+);
+$app->get('/api/admin/posts', fn(ServerRequestInterface $req): ResponseInterface =>
+    jsonResponse(200, ['ok' => true, 'data' => $repo->findAll()])
+);
+$app->post('/api/admin/posts', fn(ServerRequestInterface $req): ResponseInterface =>
+    handleAdminCreatePost($req, $repo, $validator)
+);
+$app->put('/api/admin/posts/update', fn(ServerRequestInterface $req): ResponseInterface =>
+    handleAdminUpdatePost($req, $repo, $validator)
+);
+$app->delete('/api/admin/posts/delete', fn(ServerRequestInterface $req): ResponseInterface =>
+    handleAdminDeletePost($req, $repo)
+);
+
+$request: ServerRequestInterface = createServerRequestFromGlobals();
+$response: ResponseInterface = $app->handle($request);
+$app->emit($response);

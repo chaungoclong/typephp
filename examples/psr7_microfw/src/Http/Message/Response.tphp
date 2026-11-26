@@ -1,0 +1,72 @@
+<?php
+
+namespace TypePhp\MicroFw\Http\Message;
+
+import { MessageInterface } from './MessageInterface.tphp';
+import { ResponseInterface } from './ResponseInterface.tphp';
+import { StreamInterface } from './StreamInterface.tphp';
+
+class Response implements ResponseInterface {
+    private int $statusCode;
+    private string $reasonPhrase;
+    private dict<string, string> $headers;
+    private StreamInterface $body;
+
+    public function __construct(
+        int $statusCode,
+        dict<string, string> $headers,
+        StreamInterface $body,
+        string $reasonPhrase = ''
+    ) {
+        $this->statusCode = $statusCode;
+        $this->headers = $headers;
+        $this->body = $body;
+        $this->reasonPhrase = $reasonPhrase;
+    }
+
+    public function getProtocolVersion(): string {
+        return '1.1';
+    }
+
+    public function getStatusCode(): int {
+        return $this->statusCode;
+    }
+
+    public function getReasonPhrase(): string {
+        return $this->reasonPhrase;
+    }
+
+    public function getHeaders(): dict<string, string> {
+        return $this->headers;
+    }
+
+    public function hasHeader(string $name): bool {
+        return array_key_exists(strtolower($name), $this->headers);
+    }
+
+    public function getHeaderLine(string $name): string {
+        $key: string = strtolower($name);
+        if (array_key_exists($key, $this->headers)) {
+            return $this->headers[$key];
+        }
+        return '';
+    }
+
+    public function withHeader(string $name, string $value): MessageInterface {
+        $next: dict<string, string> = $this->headers;
+        $next[strtolower($name)] = $value;
+        return new Response($this->statusCode, $next, $this->body, $this->reasonPhrase);
+    }
+
+    public function getBody(): StreamInterface {
+        return $this->body;
+    }
+
+    public function withBody(StreamInterface $body): MessageInterface {
+        return new Response($this->statusCode, $this->headers, $body, $this->reasonPhrase);
+    }
+
+    public function withStatus(int $code, string $reasonPhrase = ''): ResponseInterface {
+        return new Response($code, $this->headers, $this->body, $reasonPhrase);
+    }
+}

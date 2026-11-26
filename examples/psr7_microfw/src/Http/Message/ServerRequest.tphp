@@ -1,0 +1,123 @@
+<?php
+
+namespace TypePhp\MicroFw\Http\Message;
+
+import { MessageInterface } from './MessageInterface.tphp';
+import { ServerRequestInterface } from './ServerRequestInterface.tphp';
+import { StreamInterface } from './StreamInterface.tphp';
+import { UriInterface } from './UriInterface.tphp';
+
+class ServerRequest implements ServerRequestInterface {
+    private string $method;
+    private UriInterface $uri;
+    private dict<string, string> $headers;
+    private StreamInterface $body;
+    private dict<string, mixed> $queryParams;
+    private mixed $parsedBody;
+    private dict<string, mixed> $attributes;
+
+    public function __construct(
+        string $method,
+        UriInterface $uri,
+        dict<string, string> $headers,
+        StreamInterface $body,
+        dict<string, mixed> $queryParams,
+        mixed $parsedBody,
+        dict<string, mixed> $attributes
+    ) {
+        $this->method = strtoupper($method);
+        $this->uri = $uri;
+        $this->headers = $headers;
+        $this->body = $body;
+        $this->queryParams = $queryParams;
+        $this->parsedBody = $parsedBody;
+        $this->attributes = $attributes;
+    }
+
+    public function getProtocolVersion(): string {
+        return '1.1';
+    }
+
+    public function getMethod(): string {
+        return $this->method;
+    }
+
+    public function getUri(): UriInterface {
+        return $this->uri;
+    }
+
+    public function getHeaders(): dict<string, string> {
+        return $this->headers;
+    }
+
+    public function hasHeader(string $name): bool {
+        return array_key_exists(strtolower($name), $this->headers);
+    }
+
+    public function getHeaderLine(string $name): string {
+        $key: string = strtolower($name);
+        if (array_key_exists($key, $this->headers)) {
+            return $this->headers[$key];
+        }
+        return '';
+    }
+
+    public function withHeader(string $name, string $value): MessageInterface {
+        $next: dict<string, string> = $this->headers;
+        $next[strtolower($name)] = $value;
+        return new ServerRequest(
+            $this->method,
+            $this->uri,
+            $next,
+            $this->body,
+            $this->queryParams,
+            $this->parsedBody,
+            $this->attributes
+        );
+    }
+
+    public function getBody(): StreamInterface {
+        return $this->body;
+    }
+
+    public function withBody(StreamInterface $body): MessageInterface {
+        return new ServerRequest(
+            $this->method,
+            $this->uri,
+            $this->headers,
+            $body,
+            $this->queryParams,
+            $this->parsedBody,
+            $this->attributes
+        );
+    }
+
+    public function getQueryParams(): dict<string, mixed> {
+        return $this->queryParams;
+    }
+
+    public function getParsedBody(): mixed {
+        return $this->parsedBody;
+    }
+
+    public function getAttribute(string $name): mixed {
+        if (array_key_exists($name, $this->attributes)) {
+            return $this->attributes[$name];
+        }
+        return null;
+    }
+
+    public function withAttribute(string $name, mixed $value): ServerRequestInterface {
+        $next: dict<string, mixed> = $this->attributes;
+        $next[$name] = $value;
+        return new ServerRequest(
+            $this->method,
+            $this->uri,
+            $this->headers,
+            $this->body,
+            $this->queryParams,
+            $this->parsedBody,
+            $next
+        );
+    }
+}

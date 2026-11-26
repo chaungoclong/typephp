@@ -1,0 +1,14 @@
+{
+    "name": "typephp/blog-app",
+    "description": "Blog & Admin application built with TypePHP PSR-7 Micro-Framework and Tailwind CSS",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "TypePhp\\BlogApp\\": "src/"
+        }
+    }
+}

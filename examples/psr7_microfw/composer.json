@@ -1,0 +1,17 @@
+{
+    "name": "typephp/psr7-microfw",
+    "description": "PSR-7 compliant micro-framework written in TypePHP",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "TypePhp\\MicroFw\\": "src/"
+        }
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.3"
+    }
+}

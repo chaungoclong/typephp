@@ -1,0 +1,31 @@
+<?php
+
+namespace TypePhp\MicroFw\Validation;
+
+class ValidationResult {
+    private bool $valid;
+    private dict<string, string> $errors;
+    private dict<string, mixed> $data;
+
+    public function __construct(
+        bool $valid,
+        dict<string, string> $errors,
+        dict<string, mixed> $data
+    ) {
+        $this->valid = $valid;
+        $this->errors = $errors;
+        $this->data = $data;
+    }
+
+    public function isValid(): bool {
+        return $this->valid;
+    }
+
+    public function getErrors(): dict<string, string> {
+        return $this->errors;
+    }
+
+    public function getData(): dict<string, mixed> {
+        return $this->data;
+    }
+}

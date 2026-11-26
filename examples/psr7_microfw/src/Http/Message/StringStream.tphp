@@ -1,0 +1,25 @@
+<?php
+
+namespace TypePhp\MicroFw\Http\Message;
+
+import { StreamInterface } from './StreamInterface.tphp';
+
+class StringStream implements StreamInterface {
+    private string $content;
+
+    public function __construct(string $content = '') {
+        $this->content = $content;
+    }
+
+    public function __toString(): string {
+        return $this->content;
+    }
+
+    public function getContents(): string {
+        return $this->content;
+    }
+
+    public function getSize(): int {
+        return strlen($this->content);
+    }
+}
