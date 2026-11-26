@@ -56,3 +56,28 @@ impl fmt::Display for CompileError {
 }
 
 impl std::error::Error for CompileError {}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompileWarning {
+    pub message: String,
+    pub span: Span,
+}
+
+impl CompileWarning {
+    pub fn new(message: impl Into<String>, span: Span) -> Self {
+        Self {
+            message: message.into(),
+            span,
+        }
+    }
+}
+
+impl fmt::Display for CompileWarning {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "[Warning] {}:{}: {}",
+            self.span.line, self.span.col, self.message
+        )
+    }
+}

@@ -1,5 +1,5 @@
 use typephp::types::Type;
-use typephp::{check, compile};
+use typephp::{check, check_with_warnings, compile};
 
 // ============================================================================
 // Type System & TypeChecker Tests (MC/DC) — 100+ test cases
@@ -214,4 +214,64 @@ check_err_tests! {
 fn compile_generates_expected_php_for_generics_and_shapes() {
     let php = compile("type U = { id: int }; $u: U = ['id' => 1];").unwrap();
     assert!(php.contains("/** @var array{id: int} $u */"));
+}
+
+// ============================================================================
+// Infinite Recursion, Memory Hazards & Non-Existent Property/Value Prevention
+// ============================================================================
+
+#[test]
+fn prevents_circular_type_alias_with_explanation() {
+    let err = check("type A = B; type B = A; $x: A = 1;").unwrap_err();
+    assert!(err.message.contains("Circular type alias"));
+    assert!(err.message.contains("infinite expansion"));
+}
+
+#[test]
+fn prevents_unconditional_infinite_recursion_in_fn_and_method() {
+    let err_fn = check("function loop(): void { loop(); }").unwrap_err();
+    assert!(err_fn.message.contains("Infinite recursion"));
+    assert!(err_fn.message.contains("call stack and memory"));
+
+    let err_m = check("class C { public function inf(): void { $this->inf(); } }").unwrap_err();
+    assert!(err_m.message.contains("Infinite recursion"));
+}
+
+#[test]
+fn warns_on_conditional_recursion_without_blocking() {
+    let warns = check_with_warnings(
+        "function fact(int $n): int { if ($n <= 1) { return 1; } return $n * fact($n - 1); }",
+    )
+    .unwrap();
+    assert!(warns.iter().any(|w| w.message.contains("Recursive call")));
+}
+
+#[test]
+fn prevents_unbounded_while_true_array_push_oom_and_warns_on_while_push() {
+    let err = check("$a: int[] = []; while (true) { array_push($a, 1); }").unwrap_err();
+    assert!(err.message.contains("exhaust memory (OOM)"));
+
+    let warns = check_with_warnings("$a: int[] = []; $i: int = 0; while ($i < 3) { array_push($a, $i); $i = $i + 1; }").unwrap();
+    assert!(warns.iter().any(|w| w.message.contains("Memory growth warning")));
+}
+
+#[test]
+fn prevents_nullable_member_and_index_access_with_why() {
+    let err_mem = check("class U { public string $name = 'a'; } function f(?U $u): string { return $u->name; }").unwrap_err();
+    assert!(err_mem.message.contains("nullable type"));
+    assert!(err_mem.message.contains("Narrow with 'if ($x !== null)'"));
+
+    let err_idx = check("function f(?int[] $a): int { return $a[0]; }").unwrap_err();
+    assert!(err_idx.message.contains("nullable type"));
+    assert!(err_idx.message.contains("dereferencing null"));
+}
+
+#[test]
+fn warns_on_unguarded_optional_shape_key_and_explains_missing_key() {
+    let warns = check_with_warnings("type U = { id: int, email?: string }; $u: U = ['id' => 1]; $e = $u['email'];").unwrap();
+    assert!(warns.iter().any(|w| w.message.contains("Optional shape key 'email'")));
+
+    let err = check("type U = { id: int, name: string }; $u: U = ['id' => 1, 'name' => 'A']; $x = $u['age'];").unwrap_err();
+    assert!(err.message.contains("available keys: [id, name]"));
+    assert!(err.message.contains("Undefined array key"));
 }

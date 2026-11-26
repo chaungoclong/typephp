@@ -1,0 +1,35 @@
+{
+  "name": "typephp-language",
+  "displayName": "TypePHP Language Support",
+  "description": "Syntax highlighting and language configuration for TypePHP (.tphp)",
+  "version": "0.1.0",
+  "publisher": "typephp",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "typephp",
+        "aliases": [
+          "TypePHP",
+          "typephp"
+        ],
+        "extensions": [
+          ".tphp"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "typephp",
+        "scopeName": "source.typephp",
+        "path": "./syntaxes/typephp.tmLanguage.json"
+      }
+    ]
+  }
+}

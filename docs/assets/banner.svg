@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360">
+  <defs>
+    <linearGradient id="bannerBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07111E" />
+      <stop offset="55%" stop-color="#0B192C" />
+      <stop offset="100%" stop-color="#082428" />
+    </linearGradient>
+    <linearGradient id="mint" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A7F3D0" />
+      <stop offset="50%" stop-color="#2DD4BF" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+    <radialGradient id="glow" cx="25%" cy="50%" r="45%">
+      <stop offset="0%" stop-color="#2DD4BF" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#2DD4BF" stop-opacity="0" />
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#2DD4BF" stroke-opacity="0.07" stroke-width="1" />
+    </pattern>
+  </defs>
+
+  <!-- Background + Grid + Glow -->
+  <rect width="1200" height="360" rx="20" fill="url(#bannerBg)" />
+  <rect width="1200" height="360" rx="20" fill="url(#grid)" />
+  <rect width="1200" height="360" rx="20" fill="url(#glow)" />
+  <rect x="2" y="2" width="1196" height="356" rx="18" fill="none" stroke="#2DD4BF" stroke-opacity="0.25" stroke-width="2" />
+
+  <!-- Mint Elephant TP Emblem on the Left -->
+  <g transform="translate(88, 52)">
+    <rect x="0" y="0" width="256" height="256" rx="48" fill="#0B1320" stroke="#2DD4BF" stroke-opacity="0.4" stroke-width="3" />
+    <path d="M 46 84 C 46 72, 56 64, 68 64 L 132 64 L 132 88 L 104 88 L 104 184 C 104 191, 98 196, 91 196 L 81 196 C 74 196, 68 191, 68 184 L 68 106 C 56 108, 46 120, 44 136 C 42 120, 44 98, 46 84 Z" fill="url(#mint)" />
+    <path d="M 48 92 C 34 96, 30 112, 36 124" fill="none" stroke="#6EE7B7" stroke-width="7" stroke-linecap="round" />
+    <path d="M 124 64 L 164 64 C 192 64, 212 82, 212 108 C 212 132, 194 148, 168 148 L 148 148 L 148 184 C 148 191, 142 196, 135 196 L 127 196 C 120 196, 114 191, 114 184 L 114 74 C 114 68, 118 64, 124 64 Z M 148 88 L 148 124 L 164 124 C 178 124, 186 117, 186 106 C 186 95, 178 88, 164 88 Z" fill="url(#mint)" fill-rule="evenodd" />
+    <path d="M 196 120 C 222 120, 232 102, 224 82 C 220 72, 210 70, 206 76" fill="none" stroke="#6EE7B7" stroke-width="14" stroke-linecap="round" />
+    <circle cx="176" cy="96" r="5" fill="#0B1320" />
+  </g>
+
+  <!-- Typography -->
+  <text x="400" y="162" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="84" font-weight="800" fill="#F8FAFC" letter-spacing="-2">
+    Type<tspan fill="url(#mint)">PHP</tspan>
+  </text>
+
+  <text x="404" y="216" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="500" fill="#94A3B8">
+    Statically Typed PHP  •  Rust Compiler  •  PHPStan Level 9
+  </text>
+
+  <!-- Feature Pills -->
+  <g transform="translate(404, 248)">
+    <rect x="0" y="0" width="142" height="36" rx="18" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.45" />
+    <text x="71" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">PHP 8.1 – 8.4</text>
+
+    <rect x="158" y="0" width="124" height="36" rx="18" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.45" />
+    <text x="220" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">Generics</text>
+
+    <rect x="298" y="0" width="150" height="36" rx="18" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.45" />
+    <text x="373" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">PSR-7 &amp; PSR-12</text>
+
+    <rect x="464" y="0" width="146" height="36" rx="18" fill="#2DD4BF" fill-opacity="0.14" stroke="#2DD4BF" stroke-opacity="0.45" />
+    <text x="537" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" fill="#5EEAD4">Bundle &amp; Minify</text>
+  </g>
+</svg>

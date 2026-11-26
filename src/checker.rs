@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 
 use crate::ast::*;
-use crate::error::{CompileError, Span};
+use crate::error::{CompileError, CompileWarning, Span};
 use crate::types::Type;
 
 #[derive(Debug, Clone)]
@@ -49,6 +50,8 @@ pub struct TypeChecker {
     scopes: Vec<HashMap<String, Type>>,
     current_return: Option<Type>,
     current_class: Option<String>,
+    resolving_aliases: RefCell<HashSet<String>>,
+    pub warnings: Vec<CompileWarning>,
 }
 
 impl TypeChecker {
@@ -63,6 +66,8 @@ impl TypeChecker {
             scopes: vec![HashMap::new()],
             current_return: None,
             current_class: None,
+            resolving_aliases: RefCell::new(HashSet::new()),
+            warnings: Vec::new(),
         };
         checker.register_builtins();
         checker
@@ -637,6 +642,24 @@ impl TypeChecker {
             for s in &m.body {
                 self.check_stmt(s)?;
             }
+            if always_calls_method(&m.body, &m.name) {
+                return Err(CompileError::type_err(
+                    format!(
+                        "Infinite recursion in method '{}::{}': '{}' is called unconditionally on every path without a base-case guard, which will exhaust the call stack and memory at runtime.",
+                        cls.name, m.name, m.name
+                    ),
+                    m.span,
+                ));
+            }
+            if contains_method_call(&m.body, &m.name) {
+                self.warnings.push(CompileWarning::new(
+                    format!(
+                        "Recursive call in method '{}::{}': ensure recursion depth is bounded to avoid stack/memory exhaustion.",
+                        cls.name, m.name
+                    ),
+                    m.span,
+                ));
+            }
             self.current_return = None;
             self.pop_scope();
         }
@@ -667,6 +690,24 @@ impl TypeChecker {
         self.current_return = Some(ret);
         for s in &f.body {
             self.check_stmt(s)?;
+        }
+        if always_calls_fn(&f.body, &f.name) {
+            return Err(CompileError::type_err(
+                format!(
+                    "Infinite recursion in function '{}': '{}' is called unconditionally on every execution path without a base-case guard, which will exhaust the call stack and memory at runtime.",
+                    f.name, f.name
+                ),
+                f.span,
+            ));
+        }
+        if contains_fn_call(&f.body, &f.name) {
+            self.warnings.push(CompileWarning::new(
+                format!(
+                    "Recursive call in function '{}': ensure recursion depth is bounded to prevent stack overflow / memory exhaustion.",
+                    f.name
+                ),
+                f.span,
+            ));
         }
         self.current_return = None;
         self.pop_scope();
@@ -721,6 +762,15 @@ impl TypeChecker {
                     }
                     _ => {
                         if let Some(alias) = self.type_aliases.get(name) {
+                            if self.resolving_aliases.borrow().contains(name) {
+                                return Err(CompileError::type_err(
+                                    format!(
+                                        "Circular type alias '{}' detected: recursive type aliases cannot be resolved finitely and would cause infinite expansion.",
+                                        name
+                                    ),
+                                    *span,
+                                ));
+                            }
                             if alias.type_params.len() != args.len() {
                                 return Err(CompileError::type_err(
                                     format!(
@@ -736,7 +786,10 @@ impl TypeChecker {
                                 .iter()
                                 .map(|a| self.resolve_type(a, type_params))
                                 .collect::<Result<Vec<_>, _>>()?;
-                            let base = self.resolve_type(&alias.ty, &alias.type_params)?;
+                            self.resolving_aliases.borrow_mut().insert(name.clone());
+                            let base_res = self.resolve_type(&alias.ty, &alias.type_params);
+                            self.resolving_aliases.borrow_mut().remove(name);
+                            let base = base_res?;
                             let subst: HashMap<String, Type> = alias
                                 .type_params
                                 .iter()
@@ -999,8 +1052,20 @@ impl TypeChecker {
                 }
                 Ok(())
             }
-            Stmt::While { cond, body, .. } => {
+            Stmt::While { cond, body, span } => {
                 self.check_expr(cond)?;
+                if matches!(cond, Expr::Bool(true, _)) && !contains_return(body) {
+                    if contains_fn_call(body, "array_push") {
+                        return Err(CompileError::type_err(
+                            "Infinite 'while (true)' loop with 'array_push' and no 'return' exit path will exhaust memory (OOM) at runtime.",
+                            *span,
+                        ));
+                    }
+                    self.warnings.push(CompileWarning::new(
+                        "Potential infinite loop: 'while (true)' has no 'return' statement and may hang at runtime.",
+                        *span,
+                    ));
+                } elseif_array_push_warn(body, *span, &mut self.warnings);
                 self.push_scope();
                 for s in body {
                     self.check_stmt(s)?;
@@ -1288,6 +1353,15 @@ impl TypeChecker {
                 span,
             } => {
                 let obj_ty = self.check_expr(object)?;
+                if is_nullable(&obj_ty) {
+                    return Err(CompileError::type_err(
+                        format!(
+                            "Cannot access property or method '{}' on nullable type '{}': value may be null at runtime, causing a PHP Error. Narrow with 'if ($x !== null)' first.",
+                            property, obj_ty
+                        ),
+                        *span,
+                    ));
+                }
                 if let Type::Enum(en_name) = &obj_ty {
                     if property == "value" {
                         if let Some(en) = self.enums.get(en_name) {
@@ -1333,12 +1407,18 @@ impl TypeChecker {
                         });
                     }
                     return Err(CompileError::type_err(
-                        format!("Class '{}' has no property or method '{}'", cls_name, property),
+                        format!(
+                            "Class '{}' has no property or method '{}': accessing an undefined member causes a runtime Error in PHP.",
+                            cls_name, property
+                        ),
                         *span,
                     ));
                 }
                 Err(CompileError::type_err(
-                    format!("Cannot access member '{}' on type '{}'", property, obj_ty),
+                    format!(
+                        "Cannot access member '{}' on non-object type '{}': only class instances and backed enums support '->' member access.",
+                        property, obj_ty
+                    ),
                     *span,
                 ))
             }
@@ -1377,6 +1457,15 @@ impl TypeChecker {
             } => {
                 let obj_ty = self.check_expr(object)?;
                 let idx_ty = self.check_expr(index)?;
+                if is_nullable(&obj_ty) {
+                    return Err(CompileError::type_err(
+                        format!(
+                            "Cannot index into nullable type '{}': dereferencing null causes a runtime error in PHP. Narrow with 'if ($x !== null)' or use '??' first.",
+                            obj_ty
+                        ),
+                        *span,
+                    ));
+                }
                 match obj_ty {
                     Type::Array(elem) => {
                         if !idx_ty.is_assignable_to(&Type::Int) {
@@ -1399,14 +1488,28 @@ impl TypeChecker {
                     Type::Shape(fields) => {
                         if let Expr::String(key, _) = index.as_ref() {
                             if let Some((_, opt, fty)) = fields.iter().find(|(n, _, _)| n == key) {
+                                if *opt {
+                                    self.warnings.push(CompileWarning::new(
+                                        format!(
+                                            "Optional shape key '{}' may not exist at runtime; prefer '??' or 'array_key_exists(\"{}\", ...)' to avoid 'Undefined array key' warnings.",
+                                            key, key
+                                        ),
+                                        *span,
+                                    ));
+                                }
                                 return Ok(if *opt {
                                     Type::union(vec![fty.clone(), Type::Null])
                                 } else {
                                     fty.clone()
                                 });
                             }
+                            let known: Vec<&str> = fields.iter().map(|(n, _, _)| n.as_str()).collect();
                             return Err(CompileError::type_err(
-                                format!("Shape has no key '{}'", key),
+                                format!(
+                                    "Shape has no key '{}' (available keys: [{}]): accessing a non-existent key causes an 'Undefined array key' warning in PHP 8.4.",
+                                    key,
+                                    known.join(", ")
+                                ),
                                 *span,
                             ));
                         }
@@ -1672,4 +1775,252 @@ fn always_returns(stmts: &[Stmt]) -> bool {
         } => always_returns(then_branch) && always_returns(else_stmts),
         _ => false,
     })
+}
+
+fn is_nullable(ty: &Type) -> bool {
+    match ty {
+        Type::Null => true,
+        Type::Union(items) => items.iter().any(|t| matches!(t, Type::Null)),
+        _ => false,
+    }
+}
+
+fn contains_return(stmts: &[Stmt]) -> bool {
+    stmts.iter().any(|s| match s {
+        Stmt::Return { .. } => true,
+        Stmt::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            contains_return(then_branch)
+                || else_branch.as_ref().is_some_and(|e| contains_return(e))
+        }
+        Stmt::While { body, .. } | Stmt::ForEach { body, .. } => contains_return(body),
+        _ => false,
+    })
+}
+
+fn elseif_array_push_warn(body: &[Stmt], span: Span, warnings: &mut Vec<CompileWarning>) {
+    if contains_fn_call(body, "array_push") {
+        warnings.push(CompileWarning::new(
+            "Memory growth warning: 'array_push' inside a 'while' loop can cause unbounded memory allocation if loop bounds are not strictly controlled.",
+            span,
+        ));
+    }
+}
+
+fn always_calls_fn(stmts: &[Stmt], fn_name: &str) -> bool {
+    for s in stmts {
+        if always_returns(std::slice::from_ref(s)) && !stmt_always_calls_fn(s, fn_name) {
+            return false;
+        }
+        if let Stmt::If {
+            then_branch,
+            else_branch: None,
+            ..
+        } = s
+        {
+            if always_returns(then_branch) && !always_calls_fn(then_branch, fn_name) {
+                return false;
+            }
+        }
+        if stmt_always_calls_fn(s, fn_name) {
+            return true;
+        }
+    }
+    false
+}
+
+fn stmt_always_calls_fn(stmt: &Stmt, fn_name: &str) -> bool {
+    match stmt {
+        Stmt::VarDecl { init, .. }
+        | Stmt::ConstDecl { init, .. }
+        | Stmt::Assign { value: init, .. }
+        | Stmt::Echo { value: init, .. }
+        | Stmt::ExprStmt { expr: init, .. } => expr_contains_fn_call(init, fn_name),
+        Stmt::Return { value: Some(v), .. } => expr_contains_fn_call(v, fn_name),
+        Stmt::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_contains_fn_call(cond, fn_name)
+                || (always_calls_fn(then_branch, fn_name)
+                    && else_branch
+                        .as_ref()
+                        .is_some_and(|eb| always_calls_fn(eb, fn_name)))
+        }
+        _ => false,
+    }
+}
+
+fn always_calls_method(stmts: &[Stmt], method_name: &str) -> bool {
+    for s in stmts {
+        if always_returns(std::slice::from_ref(s)) && !stmt_always_calls_method(s, method_name) {
+            return false;
+        }
+        if let Stmt::If {
+            then_branch,
+            else_branch: None,
+            ..
+        } = s
+        {
+            if always_returns(then_branch) && !always_calls_method(then_branch, method_name) {
+                return false;
+            }
+        }
+        if stmt_always_calls_method(s, method_name) {
+            return true;
+        }
+    }
+    false
+}
+
+fn stmt_always_calls_method(stmt: &Stmt, method_name: &str) -> bool {
+    match stmt {
+        Stmt::VarDecl { init, .. }
+        | Stmt::ConstDecl { init, .. }
+        | Stmt::Assign { value: init, .. }
+        | Stmt::Echo { value: init, .. }
+        | Stmt::ExprStmt { expr: init, .. } => expr_contains_method_call(init, method_name),
+        Stmt::Return { value: Some(v), .. } => expr_contains_method_call(v, method_name),
+        Stmt::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_contains_method_call(cond, method_name)
+                || (always_calls_method(then_branch, method_name)
+                    && else_branch
+                        .as_ref()
+                        .is_some_and(|eb| always_calls_method(eb, method_name)))
+        }
+        _ => false,
+    }
+}
+
+fn contains_fn_call(stmts: &[Stmt], fn_name: &str) -> bool {
+    stmts.iter().any(|s| match s {
+        Stmt::VarDecl { init, .. }
+        | Stmt::ConstDecl { init, .. }
+        | Stmt::Assign { value: init, .. }
+        | Stmt::Echo { value: init, .. }
+        | Stmt::ExprStmt { expr: init, .. } => expr_contains_fn_call(init, fn_name),
+        Stmt::Return { value: Some(v), .. } => expr_contains_fn_call(v, fn_name),
+        Stmt::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_contains_fn_call(cond, fn_name)
+                || contains_fn_call(then_branch, fn_name)
+                || else_branch
+                    .as_ref()
+                    .is_some_and(|eb| contains_fn_call(eb, fn_name))
+        }
+        Stmt::While { cond, body, .. } | Stmt::ForEach { iterable: cond, body, .. } => {
+            expr_contains_fn_call(cond, fn_name) || contains_fn_call(body, fn_name)
+        }
+        _ => false,
+    })
+}
+
+fn expr_contains_fn_call(expr: &Expr, fn_name: &str) -> bool {
+    match expr {
+        Expr::Call { callee, args, .. } => {
+            if let Expr::Ident(n, _) = callee.as_ref() {
+                if n == fn_name {
+                    return true;
+                }
+            }
+            expr_contains_fn_call(callee, fn_name)
+                || args.iter().any(|a| expr_contains_fn_call(a, fn_name))
+        }
+        Expr::Binary { left, right, .. } => {
+            expr_contains_fn_call(left, fn_name) || expr_contains_fn_call(right, fn_name)
+        }
+        Expr::Unary { expr, .. } | Expr::Cast { expr, .. } | Expr::InstanceOf { expr, .. } => {
+            expr_contains_fn_call(expr, fn_name)
+        }
+        Expr::ArrayLit(items, _) | Expr::New { args: items, .. } => {
+            items.iter().any(|a| expr_contains_fn_call(a, fn_name))
+        }
+        Expr::AssocArrayLit(entries, _) => entries
+            .iter()
+            .any(|(_, v)| expr_contains_fn_call(v, fn_name)),
+        Expr::Member { object, .. } => expr_contains_fn_call(object, fn_name),
+        Expr::Index { object, index, .. } => {
+            expr_contains_fn_call(object, fn_name) || expr_contains_fn_call(index, fn_name)
+        }
+        _ => false,
+    }
+}
+
+fn contains_method_call(stmts: &[Stmt], method_name: &str) -> bool {
+    stmts.iter().any(|s| match s {
+        Stmt::VarDecl { init, .. }
+        | Stmt::ConstDecl { init, .. }
+        | Stmt::Assign { value: init, .. }
+        | Stmt::Echo { value: init, .. }
+        | Stmt::ExprStmt { expr: init, .. } => expr_contains_method_call(init, method_name),
+        Stmt::Return { value: Some(v), .. } => expr_contains_method_call(v, method_name),
+        Stmt::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_contains_method_call(cond, method_name)
+                || contains_method_call(then_branch, method_name)
+                || else_branch
+                    .as_ref()
+                    .is_some_and(|eb| contains_method_call(eb, method_name))
+        }
+        Stmt::While { cond, body, .. } | Stmt::ForEach { iterable: cond, body, .. } => {
+            expr_contains_method_call(cond, method_name) || contains_method_call(body, method_name)
+        }
+        _ => false,
+    })
+}
+
+fn expr_contains_method_call(expr: &Expr, method_name: &str) -> bool {
+    match expr {
+        Expr::Call { callee, args, .. } => {
+            if let Expr::Member {
+                object, property, ..
+            } = callee.as_ref()
+            {
+                if matches!(object.as_ref(), Expr::Var(v, _) if v == "this")
+                    && property == method_name
+                {
+                    return true;
+                }
+            }
+            expr_contains_method_call(callee, method_name)
+                || args.iter().any(|a| expr_contains_method_call(a, method_name))
+        }
+        Expr::Binary { left, right, .. } => {
+            expr_contains_method_call(left, method_name)
+                || expr_contains_method_call(right, method_name)
+        }
+        Expr::Unary { expr, .. } | Expr::Cast { expr, .. } | Expr::InstanceOf { expr, .. } => {
+            expr_contains_method_call(expr, method_name)
+        }
+        Expr::ArrayLit(items, _) | Expr::New { args: items, .. } => {
+            items.iter().any(|a| expr_contains_method_call(a, method_name))
+        }
+        Expr::AssocArrayLit(entries, _) => entries
+            .iter()
+            .any(|(_, v)| expr_contains_method_call(v, method_name)),
+        Expr::Member { object, .. } => expr_contains_method_call(object, method_name),
+        Expr::Index { object, index, .. } => {
+            expr_contains_method_call(object, method_name)
+                || expr_contains_method_call(index, method_name)
+        }
+        _ => false,
+    }
 }

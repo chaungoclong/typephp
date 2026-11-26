@@ -1,0 +1,37 @@
+<?php
+
+// Ví dụ các đoạn code hợp lệ nhưng trình biên dịch phát cảnh báo [Warning]
+// để nhắc lập trình viên tránh rủi ro tràn stack, tăng trưởng bộ nhớ hoặc thiếu key.
+
+type UserProfile = {
+    id: int,
+    name: string,
+    email?: string,
+};
+
+// 1. Cảnh báo đệ quy có điều kiện: cần đảm bảo độ sâu đệ quy được giới hạn
+function factorial(int $n): int {
+    if ($n <= 1) {
+        return 1;
+    }
+    return $n * factorial($n - 1);
+}
+
+// 2. Cảnh báo tăng trưởng bộ nhớ: gọi array_push trong vòng lặp while
+function collectNumbers(int $limit): int[] {
+    $items: int[] = [];
+    $i: int = 0;
+    while ($i < $limit) {
+        array_push($items, $i);
+        $i = $i + 1;
+    }
+    return $items;
+}
+
+// 3. Cảnh báo truy cập optional key trên Shape (dùng ?? để an toàn với PHPStan Level 9)
+$profile: UserProfile = ['id' => 1, 'name' => 'Long'];
+$email: string = $profile['email'] ?? 'none';
+
+$fact5: int = factorial(5);
+$nums: int[] = collectNumbers(3);
+echo 'fact(5)=' . (string) $fact5 . ', count=' . (string) count($nums) . ', email=' . $email;

@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="docs/assets/banner.jpg" alt="TypePHP Banner" width="100%" />
+  <img src="docs/assets/banner.svg" alt="TypePHP Banner" width="100%" />
 </p>
 
 <p align="center">
-  <img src="docs/assets/logo.jpg" alt="TypePHP Logo" width="110" />
+  <img src="docs/assets/logo.svg" alt="TypePHP Logo" width="110" />
 </p>
 
 <h1 align="center">TypePHP (<code>tphpc</code>)</h1>

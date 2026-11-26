@@ -15,7 +15,7 @@ use std::process::Command;
 use ast::{Item, Program, TypeExpr};
 use checker::TypeChecker;
 use codegen::{minify_php, Codegen, EmitMode, PhpVersion};
-use error::{CompileError, Span};
+use error::{CompileError, CompileWarning, Span};
 use lexer::Lexer;
 use parser::Parser;
 
@@ -38,14 +38,18 @@ impl Default for CompileOptions {
     }
 }
 
-pub fn check(source: &str) -> Result<(), CompileError> {
+pub fn check_with_warnings(source: &str) -> Result<Vec<CompileWarning>, CompileError> {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize()?;
     let mut parser = Parser::new(tokens);
     let program = parser.parse_program()?;
     let mut checker = TypeChecker::new();
     checker.check_program(&program)?;
-    Ok(())
+    Ok(checker.warnings)
+}
+
+pub fn check(source: &str) -> Result<(), CompileError> {
+    check_with_warnings(source).map(|_| ())
 }
 
 pub fn compile(source: &str) -> Result<String, CompileError> {
@@ -64,6 +68,9 @@ pub fn check_file(entry: &Path) -> Result<(), CompileError> {
     let mut checker = TypeChecker::new();
     for (_, program) in &modules {
         checker.check_program(program)?;
+    }
+    for w in &checker.warnings {
+        eprintln!("{}", w);
     }
     Ok(())
 }
@@ -89,6 +96,9 @@ pub fn compile_with_options(
     let mut checker = TypeChecker::new();
     for (_, program) in &modules {
         checker.check_program(program)?;
+    }
+    for w in &checker.warnings {
+        eprintln!("{}", w);
     }
 
     let mut compiled = Vec::new();
