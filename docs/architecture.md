@@ -102,3 +102,7 @@ Các cơ chế nổi bật:
 - **`load_all_modules` / `load_module_dfs`**: duyệt đồ thị phụ thuộc theo thứ tự topo, chống vòng lặp vô hạn bằng `visited: HashSet<PathBuf>`.
 - **`common_ancestor`**: tính thư mục gốc chung để bảo toàn cấu trúc tương đối khi xuất ra thư mục `-o <dir>`.
 - **`find_phpstan` & `run_phpstan_level9`**: chạy `phpstan analyse --level=9 --no-progress` lên toàn bộ file `.php` sinh ra; biên dịch chỉ thành công khi PHPStan Level 9 pass hoàn toàn.
+
+### `src/lsp.rs` — Language Server (`tphpc --lsp`)
+- Chạy khi truyền `--lsp`; hoàn toàn tách biệt và không ảnh hưởng tới đầu ra `.php` của compiler.
+- Xem chi tiết cơ chế `SymbolIndex`, `PhpCatalog` (PHP Reflection), VS Code extension và các công cụ đi kèm tại [lsp-and-tooling.md](lsp-and-tooling.md).

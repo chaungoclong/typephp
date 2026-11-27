@@ -13,6 +13,7 @@ This repository contains **TypePHP**, a statically typed superset of PHP with a 
   - `checker.rs` — 3-pass `TypeChecker`, generic inference, control-flow narrowing, PHP builtins
   - `codegen.rs` — PSR-12 PHP emitter, PHPStan PHPDoc generator, `use` tree-shaking, `minify_php`
   - `minify.rs` — Local variable/function mangling and inline HTML/CSS/JS minifier
+  - `lsp.rs` — Built-in LSP server (`tphpc --lsp`) with `SymbolIndex` and PHP Reflection catalog
   - `lib.rs` — Module graph loader (`load_all_modules`), `compile_with_options`, PHPStan Level 9 gate
   - `main.rs` — CLI (`tphpc`)
 - `tests/compiler_tests.rs` — Integration tests for the compiler
@@ -50,3 +51,14 @@ cargo run -- examples/blog_app/public/index.tphp --bundle --minify -o /tmp/blog.
    - Update `lexer.rs` → `ast.rs` → `parser.rs` → `checker.rs` → `codegen.rs` (and `minify.rs` if new AST variants are added).
    - Add integration tests in `tests/compiler_tests.rs` and update `docs/` if user-facing syntax or CLI flags change.
 5. **Cleanup**: Do not leave temporary test artifacts (`/tmp/*.php`, `*.db` created during ad-hoc verification) tracked or cluttered in the workspace.
+
+## Git & Pull Request Workflow
+
+The `main` branch is **protected** — never push directly to `main`.
+
+1. **Always branch off `main`**: Create a new descriptive branch before committing (`feat/<topic>`, `fix/<topic>`, `docs/<topic>`, etc.):
+   ```bash
+   git checkout -b feat/my-change
+   ```
+2. **Test before commit**: Run `cargo test` (0 warnings) and `cargo run -- examples/blog_app/public/index.tphp` (PHPStan Level 9 OK).
+3. **Commit & Push**: Stage only relevant files (`git add`), commit with a clear message, push the branch (`git push -u origin feat/my-change`), and open a Pull Request into `main`.
