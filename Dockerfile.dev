@@ -1,0 +1,32 @@
+FROM php:8.4-cli-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH="/usr/local/cargo/bin:${PATH}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    curl \
+    git \
+    libsqlite3-dev \
+    pkg-config \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Install Rust stable toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --no-modify-path --default-toolchain stable
+
+WORKDIR /workspace
+
+# Pre-install PHPStan Level 9 globally for standalone .tphp compilation
+RUN mkdir -p /root/.typephp \
+    && printf '{"name":"typephp/global-tools","require":{"phpstan/phpstan":"^2.0"}}\n' > /root/.typephp/composer.json \
+    && composer --working-dir=/root/.typephp install --no-interaction --prefer-dist
+
+CMD ["bash"]

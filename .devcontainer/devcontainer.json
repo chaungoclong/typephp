@@ -1,0 +1,14 @@
+{
+  "name": "TypePHP Dev Container",
+  "dockerComposeFile": "../compose.yaml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer"
+      ]
+    }
+  },
+  "postCreateCommand": "composer --working-dir=examples/psr7_microfw install --no-interaction --prefer-dist && cargo test"
+}

@@ -90,10 +90,15 @@ ensure_base_tools() {
       run_pkg_install apk add --no-cache curl ca-certificates git build-base
     fi
   elif command -v apt-get >/dev/null 2>&1; then
-    if ! command -v curl >/dev/null 2>&1 || ! command -v cc >/dev/null 2>&1; then
+    if ! command -v curl >/dev/null 2>&1 || ! command -v cc >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
       log "Installing base build tools (curl, git, build-essential)..."
-      run_pkg_install apt-get update
-      run_pkg_install apt-get install -y curl ca-certificates git build-essential
+      run_pkg_install env DEBIAN_FRONTEND=noninteractive apt-get update
+      run_pkg_install env DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates git build-essential
+    fi
+  elif command -v dnf >/dev/null 2>&1; then
+    if ! command -v curl >/dev/null 2>&1 || ! command -v gcc >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
+      log "Installing base build tools on Fedora (curl, git, gcc, tar)..."
+      run_pkg_install dnf install -y curl ca-certificates git gcc tar gzip unzip
     fi
   fi
 }
@@ -129,10 +134,10 @@ ensure_php() {
       run_pkg_install ln -sf /usr/bin/php84 /usr/bin/php
     fi
   elif command -v apt-get >/dev/null 2>&1; then
-    run_pkg_install apt-get update
-    run_pkg_install apt-get install -y php-cli php-sqlite3 php-pdo php-mbstring php-xml unzip curl
+    run_pkg_install env DEBIAN_FRONTEND=noninteractive apt-get update
+    run_pkg_install env DEBIAN_FRONTEND=noninteractive apt-get install -y php-cli php-sqlite3 php-pdo php-mbstring php-xml unzip curl
   elif command -v dnf >/dev/null 2>&1; then
-    run_pkg_install dnf install -y php-cli php-pdo php-json unzip curl
+    run_pkg_install dnf install -y php-cli php-pdo php-json php-mbstring php-xml unzip curl
   elif command -v pacman >/dev/null 2>&1; then
     run_pkg_install pacman -Sy --noconfirm php php-sqlite unzip curl
   else

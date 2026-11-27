@@ -75,6 +75,21 @@ Hoặc cài đặt trực tiếp từ source bằng Cargo:
 cargo install --path .
 ```
 
+### Môi trường phát triển bằng Docker (không cần cài Rust/PHP trên máy)
+
+```bash
+# Chạy toàn bộ test suite (724 tests) trong Docker
+docker compose run --rm dev cargo test
+
+# Mở shell dev đầy đủ Rust + PHP 8.4 + Composer + PHPStan Level 9
+docker compose run --rm dev bash
+
+# Hoặc mở kèm port web (mặc định map 18080->8080, 18081->8081, 18082->8082; tuỳ chỉnh qua TPHP_PORT_8080)
+docker compose run --rm --service-ports dev bash
+```
+
+Hoặc mở trực tiếp bằng **VS Code Dev Containers** (`.devcontainer/devcontainer.json`).
+
 ### Biên dịch & Kiểm thử
 
 ```bash
