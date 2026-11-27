@@ -52,35 +52,37 @@ function createServerRequestFromGlobals(): ServerRequestInterface {
     return new ServerRequest($method, $uri, [], $stream, $_GET, $parsed, []);
 }
 
-$app = new App();
+function main(): void {
+    $app = new App();
 
-$app->addMiddleware(fn(ServerRequestInterface $req, Handler $next): ResponseInterface =>
-    $next($req->withAttribute('framework', 'TypePHP-PSR7'))
-);
+    $app->addMiddleware(fn(ServerRequestInterface $req, Handler $next): ResponseInterface =>
+        $next($req->withAttribute('framework', 'TypePHP-PSR7'))
+    );
 
-$app->get('/', fn(ServerRequestInterface $req): ResponseInterface =>
-    jsonResponse(200, [
-        'ok' => true,
-        'framework' => $req->getAttribute('framework'),
-        'path' => $req->getUri()->getPath(),
-    ])
-);
+    $app->get('/', fn(ServerRequestInterface $req): ResponseInterface =>
+        jsonResponse(200, [
+            'ok' => true,
+            'framework' => $req->getAttribute('framework'),
+            'path' => $req->getUri()->getPath(),
+        ])
+    );
 
-$app->get('/hello', fn(ServerRequestInterface $req): ResponseInterface =>
-    jsonResponse(200, [
-        'ok' => true,
-        'message' => 'Hello from PSR-4 Composer Package!',
-        'query' => $req->getQueryParams(),
-    ])
-);
+    $app->get('/hello', fn(ServerRequestInterface $req): ResponseInterface =>
+        jsonResponse(200, [
+            'ok' => true,
+            'message' => 'Hello from PSR-4 Composer Package!',
+            'query' => $req->getQueryParams(),
+        ])
+    );
 
-$app->post('/echo', fn(ServerRequestInterface $req): ResponseInterface =>
-    jsonResponse(200, [
-        'ok' => true,
-        'received' => $req->getParsedBody(),
-    ])
-);
+    $app->post('/echo', fn(ServerRequestInterface $req): ResponseInterface =>
+        jsonResponse(200, [
+            'ok' => true,
+            'received' => $req->getParsedBody(),
+        ])
+    );
 
-$request: ServerRequestInterface = createServerRequestFromGlobals();
-$response: ResponseInterface = $app->handle($request);
-$app->emit($response);
+    $request: ServerRequestInterface = createServerRequestFromGlobals();
+    $response: ResponseInterface = $app->handle($request);
+    $app->emit($response);
+}

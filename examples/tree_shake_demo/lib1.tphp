@@ -1,0 +1,20 @@
+<?php
+
+import { LoggerService, DeadMetricsCollector } from './lib2.tphp';
+
+function deadExportCsv(): string {
+    $metrics = new DeadMetricsCollector();
+    return $metrics->collect('unused');
+}
+
+class AppRunner {
+    private LoggerService $logger;
+
+    public function __construct() {
+        $this->logger = new LoggerService();
+    }
+
+    public function run(string $target): string {
+        return $this->logger->log('Hello, ' . $target . '!');
+    }
+}

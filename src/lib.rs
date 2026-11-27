@@ -149,7 +149,11 @@ pub fn compile_with_options(
 
             for (idx, (mod_path, program)) in modules.iter().enumerate() {
                 let mut codegen = Codegen::new_with_target(opts.target);
-                let php = codegen.emit_program_with_aliases(program, &external_aliases);
+                let php = codegen.emit_program_with_aliases_and_entry(
+                    program,
+                    &external_aliases,
+                    idx == last_idx,
+                );
                 for item in &program.items {
                     if let Item::TypeAlias(ta) = item {
                         external_aliases.insert(ta.name.clone(), ta.ty.clone());
@@ -214,9 +218,14 @@ pub fn compile_with_options(
             }
             EmitMode::Preserve => {
                 let mut external_aliases: HashMap<String, TypeExpr> = HashMap::new();
+                let last_idx = mangled_programs.len().saturating_sub(1);
                 for (idx, program) in mangled_programs.iter().enumerate() {
                     let mut codegen = Codegen::new_with_target(opts.target);
-                    let php = minify_php(&codegen.emit_program_with_aliases(program, &external_aliases));
+                    let php = minify_php(&codegen.emit_program_with_aliases_and_entry(
+                        program,
+                        &external_aliases,
+                        idx == last_idx,
+                    ));
                     for item in &program.items {
                         if let Item::TypeAlias(ta) = item {
                             external_aliases.insert(ta.name.clone(), ta.ty.clone());

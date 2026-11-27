@@ -6,6 +6,7 @@ function sendJson<T>(int $status, T $payload): void {
     echo (string) json_encode($payload);
 }
 
+function main(): void {
 $method: string = 'GET';
 $rawMethod: mixed = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if (is_string($rawMethod)) {
@@ -62,3 +63,4 @@ if ($path === '/items' && $method === 'POST') {
 }
 
 sendJson<dict<string, mixed>>(404, ['ok' => false, 'error' => 'Not found']);
+}

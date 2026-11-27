@@ -1,0 +1,30 @@
+<?php
+
+interface FormatterInterface {
+    public function format(string $text): string;
+}
+
+enum DeadLevel: string {
+    case Debug = 'debug';
+    case Error = 'error';
+}
+
+function deadCryptoHash(string $s): string {
+    return 'DEAD_HASH_' . $s;
+}
+
+class DeadXmlFormatter implements FormatterInterface {
+    public function format(string $text): string {
+        return '<xml>' . deadCryptoHash($text) . '</xml>';
+    }
+}
+
+function formatPrefix(string $prefix): string {
+    return '[' . strtoupper($prefix) . '] ';
+}
+
+class PlainFormatter implements FormatterInterface {
+    public function format(string $text): string {
+        return formatPrefix('app') . $text;
+    }
+}
