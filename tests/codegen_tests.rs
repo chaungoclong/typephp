@@ -208,3 +208,61 @@ codegen_not_contains_tests! {
     cg_no_var_phpdoc_for_float => ("$x: float = 1.0;", "@var float"),
     cg_no_fn_phpdoc_for_simple => ("function add(int $a, int $b): int { return $a + $b; }", "/**"),
 }
+
+#[test]
+fn emit_bundle_tree_shakes_unused_code_and_runs_main() {
+    let lib = Parser::new(
+        Lexer::new(
+            "namespace Lib;\nclass UsedBox { public int $v = 1; }\nclass DeadClass {}\nfunction usedFn(): UsedBox { return new UsedBox(); }\nfunction deadFn(): int { return 99; }\n",
+        )
+        .tokenize()
+        .unwrap(),
+    )
+    .parse_program()
+    .unwrap();
+    let dead_mod = Parser::new(
+        Lexer::new("namespace DeadNs;\nfunction neverCalled(): void {}\n")
+            .tokenize()
+            .unwrap(),
+    )
+    .parse_program()
+    .unwrap();
+    let entry = Parser::new(
+        Lexer::new("use Lib\\UsedBox;\nuse Lib\\usedFn;\nfunction helper(): UsedBox { return usedFn(); }\nfunction main(): void { $b = helper(); echo (string) $b->v; }\n")
+            .tokenize()
+            .unwrap(),
+    )
+    .parse_program()
+    .unwrap();
+
+    let bundled = Codegen::new().emit_bundle(&[&lib, &dead_mod, &entry]);
+    assert!(bundled.contains("class UsedBox"));
+    assert!(bundled.contains("function usedFn"));
+    assert!(bundled.contains("function helper"));
+    assert!(bundled.contains("function main"));
+    assert!(bundled.contains("main();"));
+    assert!(!bundled.contains("DeadClass"));
+    assert!(!bundled.contains("deadFn"));
+    assert!(!bundled.contains("neverCalled"));
+    assert!(!bundled.contains("DeadNs"));
+}
+
+#[test]
+fn emit_program_auto_calls_main_void_and_int() {
+    let void_out = compile("function main(): void { echo 'hi'; }").unwrap();
+    assert!(void_out.contains("main();"));
+    assert!(!void_out.contains("exit(main());"));
+
+    let int_out = compile("function main(): int { return 0; }").unwrap();
+    assert!(int_out.contains("exit(main());"));
+
+    let manual_out = compile("function main(): void { echo 'hi'; }\nmain();").unwrap();
+    assert_eq!(manual_out.matches("main();").count(), 1);
+
+    let argv_out = compile("function main(string[] $args): int { return count($args); }").unwrap();
+    assert!(argv_out.contains("exit(main(array_values(array_filter"));
+
+    let c_style_out = compile("function main(int $argc, string[] $argv): int { return $argc; }").unwrap();
+    assert!(c_style_out.contains("$__tphp_argv = "));
+    assert!(c_style_out.contains("exit(main(count($__tphp_argv), $__tphp_argv));"));
+}

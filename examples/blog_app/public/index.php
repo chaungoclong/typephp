@@ -268,22 +268,27 @@ function handleLoginPage(ServerRequestInterface $req, Templates $views): Respons
     return htmlResponse(200, $views->renderLoginPage());
 }
 
-$repo = new PostRepository(__DIR__ . '/blog.db');
-$validator = new Validator();
-$views = new Templates();
-$app = new App();
-$app->addMiddleware(fn (ServerRequestInterface $req, \Closure $next): ResponseInterface => authMiddleware($req, $next));
-$app->get('/', fn (ServerRequestInterface $req): ResponseInterface => htmlResponse(200, $views->renderBlogPage($repo->findPublished())));
-$app->get('/post', fn (ServerRequestInterface $req): ResponseInterface => handleViewPostHtml($req, $repo, $views));
-$app->get('/login', fn (ServerRequestInterface $req): ResponseInterface => handleLoginPage($req, $views));
-$app->get('/admin', fn (ServerRequestInterface $req): ResponseInterface => htmlResponse(200, $views->renderAdminPage()));
-$app->post('/api/login', fn (ServerRequestInterface $req): ResponseInterface => handleLogin($req, $validator));
-$app->post('/api/logout', fn (ServerRequestInterface $req): ResponseInterface => handleLogout());
-$app->get('/api/posts', fn (ServerRequestInterface $req): ResponseInterface => jsonResponse(200, ['ok' => true, 'data' => $repo->findPublished()]));
-$app->get('/api/admin/posts', fn (ServerRequestInterface $req): ResponseInterface => jsonResponse(200, ['ok' => true, 'data' => $repo->findAll()]));
-$app->post('/api/admin/posts', fn (ServerRequestInterface $req): ResponseInterface => handleAdminCreatePost($req, $repo, $validator));
-$app->put('/api/admin/posts/update', fn (ServerRequestInterface $req): ResponseInterface => handleAdminUpdatePost($req, $repo, $validator));
-$app->delete('/api/admin/posts/delete', fn (ServerRequestInterface $req): ResponseInterface => handleAdminDeletePost($req, $repo));
-$request = createServerRequestFromGlobals();
-$response = $app->handle($request);
-$app->emit($response);
+function main(): void
+{
+    $repo = new PostRepository(__DIR__ . '/blog.db');
+    $validator = new Validator();
+    $views = new Templates();
+    $app = new App();
+    $app->addMiddleware(fn (ServerRequestInterface $req, \Closure $next): ResponseInterface => authMiddleware($req, $next));
+    $app->get('/', fn (ServerRequestInterface $req): ResponseInterface => htmlResponse(200, $views->renderBlogPage($repo->findPublished())));
+    $app->get('/post', fn (ServerRequestInterface $req): ResponseInterface => handleViewPostHtml($req, $repo, $views));
+    $app->get('/login', fn (ServerRequestInterface $req): ResponseInterface => handleLoginPage($req, $views));
+    $app->get('/admin', fn (ServerRequestInterface $req): ResponseInterface => htmlResponse(200, $views->renderAdminPage()));
+    $app->post('/api/login', fn (ServerRequestInterface $req): ResponseInterface => handleLogin($req, $validator));
+    $app->post('/api/logout', fn (ServerRequestInterface $req): ResponseInterface => handleLogout());
+    $app->get('/api/posts', fn (ServerRequestInterface $req): ResponseInterface => jsonResponse(200, ['ok' => true, 'data' => $repo->findPublished()]));
+    $app->get('/api/admin/posts', fn (ServerRequestInterface $req): ResponseInterface => jsonResponse(200, ['ok' => true, 'data' => $repo->findAll()]));
+    $app->post('/api/admin/posts', fn (ServerRequestInterface $req): ResponseInterface => handleAdminCreatePost($req, $repo, $validator));
+    $app->put('/api/admin/posts/update', fn (ServerRequestInterface $req): ResponseInterface => handleAdminUpdatePost($req, $repo, $validator));
+    $app->delete('/api/admin/posts/delete', fn (ServerRequestInterface $req): ResponseInterface => handleAdminDeletePost($req, $repo));
+    $request = createServerRequestFromGlobals();
+    $response = $app->handle($request);
+    $app->emit($response);
+}
+
+main();

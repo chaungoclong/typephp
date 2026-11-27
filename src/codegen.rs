@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::ast::*;
 
@@ -82,7 +82,37 @@ impl Codegen {
         self.line(&format!("// Target: PHP {}", self.target.as_str()));
         self.out.push('\n');
 
-        for program in modules {
+        let reachable = compute_reachable_symbols(modules);
+        let last_idx = modules.len().saturating_sub(1);
+
+        for (mod_idx, program) in modules.iter().enumerate() {
+            let is_reachable_item = |item: &Item| -> bool {
+                let Some(ref r) = reachable else {
+                    return true;
+                };
+                match item {
+                    Item::Interface(i) => r.contains(&i.name),
+                    Item::Enum(e) => r.contains(&e.name),
+                    Item::Class(c) => r.contains(&c.name),
+                    Item::Function(f) => r.contains(&f.name),
+                    Item::Stmt(_) => true,
+                    Item::Import { path, .. } | Item::Require(path, _) => !path.ends_with(".tphp"),
+                    _ => false,
+                }
+            };
+
+            let is_entry = mod_idx == last_idx;
+            let auto_main = if is_entry {
+                entry_auto_main_call(program)
+            } else {
+                None
+            };
+
+            let has_emitted_body = program.items.iter().any(is_reachable_item) || auto_main.is_some();
+            if has_any_namespace && !has_emitted_body {
+                continue;
+            }
+
             let ns = program.items.iter().find_map(|it| match it {
                 Item::Namespace(name, _) => Some(name.as_str()),
                 _ => None,
@@ -97,7 +127,12 @@ impl Codegen {
                 self.indent += 1;
             }
 
-            let used_symbols = collect_used_symbols(program);
+            let mut used_symbols = HashSet::new();
+            for item in &program.items {
+                if is_reachable_item(item) {
+                    collect_item_symbols(item, &mut used_symbols);
+                }
+            }
             let mut seen_uses = HashSet::new();
             let mut prev_was_use = false;
             for item in &program.items {
@@ -121,6 +156,9 @@ impl Codegen {
                         prev_was_use = true;
                     }
                     Item::Interface(iface) => {
+                        if !is_reachable_item(item) {
+                            continue;
+                        }
                         if prev_was_use {
                             self.out.push('\n');
                             prev_was_use = false;
@@ -129,6 +167,9 @@ impl Codegen {
                         self.out.push('\n');
                     }
                     Item::Enum(en) => {
+                        if !is_reachable_item(item) {
+                            continue;
+                        }
                         if prev_was_use {
                             self.out.push('\n');
                             prev_was_use = false;
@@ -137,6 +178,9 @@ impl Codegen {
                         self.out.push('\n');
                     }
                     Item::Class(cls) => {
+                        if !is_reachable_item(item) {
+                            continue;
+                        }
                         if prev_was_use {
                             self.out.push('\n');
                             prev_was_use = false;
@@ -145,6 +189,9 @@ impl Codegen {
                         self.out.push('\n');
                     }
                     Item::Function(f) => {
+                        if !is_reachable_item(item) {
+                            continue;
+                        }
                         if prev_was_use {
                             self.out.push('\n');
                             prev_was_use = false;
@@ -159,6 +206,12 @@ impl Codegen {
                         }
                         self.emit_stmt(s);
                     }
+                }
+            }
+
+            if let Some(call_stmt) = auto_main {
+                for line in call_stmt.lines() {
+                    self.line(line);
                 }
             }
 
@@ -183,6 +236,15 @@ impl Codegen {
         &mut self,
         program: &Program,
         external_aliases: &HashMap<String, TypeExpr>,
+    ) -> String {
+        self.emit_program_with_aliases_and_entry(program, external_aliases, true)
+    }
+
+    pub fn emit_program_with_aliases_and_entry(
+        &mut self,
+        program: &Program,
+        external_aliases: &HashMap<String, TypeExpr>,
+        is_entry: bool,
     ) -> String {
         for (k, v) in external_aliases {
             self.type_aliases.insert(k.clone(), v.clone());
@@ -309,6 +371,14 @@ impl Codegen {
                         prev_was_req = false;
                     }
                     self.emit_stmt(s);
+                }
+            }
+        }
+
+        if is_entry {
+            if let Some(call_stmt) = entry_auto_main_call(program) {
+                for line in call_stmt.lines() {
+                    self.line(line);
                 }
             }
         }
@@ -535,6 +605,10 @@ impl Codegen {
             }
             Stmt::Echo { value, .. } => {
                 self.line(&format!("echo {};", self.format_expr(value)));
+            }
+            Stmt::Global { vars, .. } => {
+                let list: Vec<String> = vars.iter().map(|v| format!("${}", v)).collect();
+                self.line(&format!("global {};", list.join(", ")));
             }
             Stmt::If {
                 cond,
@@ -886,69 +960,250 @@ fn quote_php_string(s: &str) -> String {
     format!("'{}'", escaped)
 }
 
+fn is_string_array_type(ty: &TypeExpr) -> bool {
+    matches!(ty, TypeExpr::Array(inner, _) if matches!(inner.as_ref(), TypeExpr::Named(n, _, _) if n == "string"))
+}
+
+fn entry_auto_main_call(program: &Program) -> Option<String> {
+    let main_fn = program.items.iter().find_map(|it| match it {
+        Item::Function(f) if f.name == "main" => Some(f),
+        _ => None,
+    })?;
+    let already_called = program.items.iter().any(|it| match it {
+        Item::Stmt(s) => stmt_contains_fn_call(s, "main"),
+        _ => false,
+    });
+    if already_called {
+        return None;
+    }
+
+    let returns_int = matches!(&main_fn.return_type, TypeExpr::Named(n, _, _) if n == "int");
+    let wrap = |call: &str| -> String {
+        if returns_int {
+            format!("exit({});", call)
+        } else {
+            format!("{};", call)
+        }
+    };
+
+    if main_fn.params.iter().all(|p| p.default.is_some()) {
+        return Some(wrap("main()"));
+    }
+
+    let argv_expr = "array_values(array_filter(is_array($_SERVER['argv'] ?? null) ? $_SERVER['argv'] : [], fn (mixed $a): bool => is_string($a)))";
+
+    if main_fn.params.len() == 1 && is_string_array_type(&main_fn.params[0].ty) {
+        return Some(wrap(&format!("main({})", argv_expr)));
+    }
+
+    if main_fn.params.len() == 2
+        && matches!(&main_fn.params[0].ty, TypeExpr::Named(n, _, _) if n == "int")
+        && is_string_array_type(&main_fn.params[1].ty)
+    {
+        return Some(format!(
+            "$__tphp_argv = {};\n{}",
+            argv_expr,
+            wrap("main(count($__tphp_argv), $__tphp_argv)")
+        ));
+    }
+
+    None
+}
+
+fn stmt_contains_fn_call(stmt: &Stmt, fn_name: &str) -> bool {
+    match stmt {
+        Stmt::VarDecl { init, .. }
+        | Stmt::ConstDecl { init, .. }
+        | Stmt::Assign { value: init, .. }
+        | Stmt::Echo { value: init, .. }
+        | Stmt::ExprStmt { expr: init, .. } => expr_contains_fn_call_cg(init, fn_name),
+        Stmt::Return { value: Some(v), .. } => expr_contains_fn_call_cg(v, fn_name),
+        Stmt::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_contains_fn_call_cg(cond, fn_name)
+                || then_branch.iter().any(|s| stmt_contains_fn_call(s, fn_name))
+                || else_branch
+                    .as_ref()
+                    .is_some_and(|eb| eb.iter().any(|s| stmt_contains_fn_call(s, fn_name)))
+        }
+        Stmt::While { cond, body, .. } | Stmt::ForEach { iterable: cond, body, .. } => {
+            expr_contains_fn_call_cg(cond, fn_name)
+                || body.iter().any(|s| stmt_contains_fn_call(s, fn_name))
+        }
+        _ => false,
+    }
+}
+
+fn expr_contains_fn_call_cg(expr: &Expr, fn_name: &str) -> bool {
+    match expr {
+        Expr::Call { callee, args, .. } => {
+            if let Expr::Ident(n, _) = callee.as_ref() {
+                if n.trim_start_matches('\\') == fn_name {
+                    return true;
+                }
+            }
+            expr_contains_fn_call_cg(callee, fn_name)
+                || args.iter().any(|a| expr_contains_fn_call_cg(a, fn_name))
+        }
+        Expr::Binary { left, right, .. } => {
+            expr_contains_fn_call_cg(left, fn_name) || expr_contains_fn_call_cg(right, fn_name)
+        }
+        Expr::Unary { expr, .. } | Expr::Cast { expr, .. } | Expr::InstanceOf { expr, .. } => {
+            expr_contains_fn_call_cg(expr, fn_name)
+        }
+        Expr::ArrayLit(items, _) | Expr::New { args: items, .. } => {
+            items.iter().any(|a| expr_contains_fn_call_cg(a, fn_name))
+        }
+        Expr::AssocArrayLit(entries, _) => entries
+            .iter()
+            .any(|(_, v)| expr_contains_fn_call_cg(v, fn_name)),
+        Expr::Member { object, .. } => expr_contains_fn_call_cg(object, fn_name),
+        Expr::Index { object, index, .. } => {
+            expr_contains_fn_call_cg(object, fn_name) || expr_contains_fn_call_cg(index, fn_name)
+        }
+        Expr::ArrowFn { body, .. } => expr_contains_fn_call_cg(body, fn_name),
+        _ => false,
+    }
+}
+
+fn compute_reachable_symbols(modules: &[&Program]) -> Option<HashSet<String>> {
+    let mut seeds = HashSet::new();
+    let mut has_roots = false;
+
+    for prog in modules {
+        for item in &prog.items {
+            if let Item::Stmt(s) = item {
+                has_roots = true;
+                collect_stmt_symbols(std::slice::from_ref(s), &mut seeds);
+            }
+        }
+    }
+
+    if let Some(entry) = modules.last() {
+        if entry_auto_main_call(entry).is_some() {
+            has_roots = true;
+            seeds.insert("main".to_string());
+        }
+    }
+
+    if !has_roots {
+        return None;
+    }
+
+    let mut item_map: HashMap<String, Vec<&Item>> = HashMap::new();
+    for prog in modules {
+        for item in &prog.items {
+            let name = match item {
+                Item::Interface(i) => Some(i.name.clone()),
+                Item::Enum(e) => Some(e.name.clone()),
+                Item::Class(c) => Some(c.name.clone()),
+                Item::Function(f) => Some(f.name.clone()),
+                Item::TypeAlias(ta) => Some(ta.name.clone()),
+                _ => None,
+            };
+            if let Some(n) = name {
+                item_map.entry(n).or_default().push(item);
+            }
+        }
+    }
+
+    let mut reachable = HashSet::new();
+    let mut queue: VecDeque<String> = seeds.into_iter().collect();
+
+    while let Some(sym) = queue.pop_front() {
+        let short = sym.rsplit('\\').next().unwrap_or(&sym).to_string();
+        if !reachable.insert(short.clone()) {
+            continue;
+        }
+        if let Some(items) = item_map.get(&short) {
+            let mut deps = HashSet::new();
+            for it in items {
+                collect_item_symbols(it, &mut deps);
+            }
+            for d in deps {
+                let d_short = d.rsplit('\\').next().unwrap_or(&d).to_string();
+                if !reachable.contains(&d_short) {
+                    queue.push_back(d_short);
+                }
+            }
+        }
+    }
+
+    Some(reachable)
+}
+
 fn collect_used_symbols(program: &Program) -> HashSet<String> {
     let mut used = HashSet::new();
     for item in &program.items {
-        match item {
-            Item::Interface(iface) => {
-                for ext in &iface.extends {
-                    used.insert(ext.clone());
-                }
-                for m in &iface.methods {
-                    for p in &m.params {
-                        collect_type_symbols(&p.ty, &mut used);
-                    }
-                    collect_type_symbols(&m.return_type, &mut used);
-                }
-            }
-            Item::Class(cls) => {
-                if let Some(ext) = &cls.extends {
-                    used.insert(ext.clone());
-                }
-                for imp in &cls.implements {
-                    used.insert(imp.clone());
-                }
-                for f in &cls.fields {
-                    collect_type_symbols(&f.ty, &mut used);
-                    if let Some(def) = &f.default {
-                        collect_expr_symbols(def, &mut used);
-                    }
-                }
-                if let Some(ctor) = &cls.constructor {
-                    for p in &ctor.params {
-                        collect_type_symbols(&p.ty, &mut used);
-                        if let Some(def) = &p.default {
-                            collect_expr_symbols(def, &mut used);
-                        }
-                    }
-                    collect_stmt_symbols(&ctor.body, &mut used);
-                }
-                for m in &cls.methods {
-                    for p in &m.params {
-                        collect_type_symbols(&p.ty, &mut used);
-                        if let Some(def) = &p.default {
-                            collect_expr_symbols(def, &mut used);
-                        }
-                    }
-                    collect_type_symbols(&m.return_type, &mut used);
-                    collect_stmt_symbols(&m.body, &mut used);
-                }
-            }
-            Item::Function(f) => {
-                for p in &f.params {
-                    collect_type_symbols(&p.ty, &mut used);
-                    if let Some(def) = &p.default {
-                        collect_expr_symbols(def, &mut used);
-                    }
-                }
-                collect_type_symbols(&f.return_type, &mut used);
-                collect_stmt_symbols(&f.body, &mut used);
-            }
-            Item::Stmt(s) => collect_stmt_symbols(std::slice::from_ref(s), &mut used),
-            _ => {}
-        }
+        collect_item_symbols(item, &mut used);
     }
     used
+}
+
+fn collect_item_symbols(item: &Item, used: &mut HashSet<String>) {
+    match item {
+        Item::TypeAlias(ta) => collect_type_symbols(&ta.ty, used),
+        Item::Interface(iface) => {
+            for ext in &iface.extends {
+                used.insert(ext.clone());
+            }
+            for m in &iface.methods {
+                for p in &m.params {
+                    collect_type_symbols(&p.ty, used);
+                }
+                collect_type_symbols(&m.return_type, used);
+            }
+        }
+        Item::Class(cls) => {
+            if let Some(ext) = &cls.extends {
+                used.insert(ext.clone());
+            }
+            for imp in &cls.implements {
+                used.insert(imp.clone());
+            }
+            for f in &cls.fields {
+                collect_type_symbols(&f.ty, used);
+                if let Some(def) = &f.default {
+                    collect_expr_symbols(def, used);
+                }
+            }
+            if let Some(ctor) = &cls.constructor {
+                for p in &ctor.params {
+                    collect_type_symbols(&p.ty, used);
+                    if let Some(def) = &p.default {
+                        collect_expr_symbols(def, used);
+                    }
+                }
+                collect_stmt_symbols(&ctor.body, used);
+            }
+            for m in &cls.methods {
+                for p in &m.params {
+                    collect_type_symbols(&p.ty, used);
+                    if let Some(def) = &p.default {
+                        collect_expr_symbols(def, used);
+                    }
+                }
+                collect_type_symbols(&m.return_type, used);
+                collect_stmt_symbols(&m.body, used);
+            }
+        }
+        Item::Function(f) => {
+            for p in &f.params {
+                collect_type_symbols(&p.ty, used);
+                if let Some(def) = &p.default {
+                    collect_expr_symbols(def, used);
+                }
+            }
+            collect_type_symbols(&f.return_type, used);
+            collect_stmt_symbols(&f.body, used);
+        }
+        Item::Stmt(s) => collect_stmt_symbols(std::slice::from_ref(s), used),
+        _ => {}
+    }
 }
 
 fn collect_type_symbols(ty: &TypeExpr, used: &mut HashSet<String>) {
@@ -1000,6 +1255,7 @@ fn collect_stmt_symbols(stmts: &[Stmt], used: &mut HashSet<String>) {
                 }
             }
             Stmt::Echo { value, .. } => collect_expr_symbols(value, used),
+            Stmt::Global { .. } => {}
             Stmt::If {
                 cond,
                 then_branch,
@@ -1027,14 +1283,26 @@ fn collect_expr_symbols(expr: &Expr, used: &mut HashSet<String>) {
             used.insert(name.clone());
         }
         Expr::New {
-            class_name, args, ..
+            class_name,
+            type_args,
+            args,
+            ..
         } => {
             used.insert(class_name.clone());
+            for ta in type_args {
+                collect_type_symbols(ta, used);
+            }
             for a in args {
                 collect_expr_symbols(a, used);
             }
         }
-        Expr::StaticAccess { class_name, .. } | Expr::InstanceOf { class_name, .. } => {
+        Expr::StaticAccess { class_name, .. } => {
+            used.insert(class_name.clone());
+        }
+        Expr::InstanceOf {
+            expr, class_name, ..
+        } => {
+            collect_expr_symbols(expr, used);
             used.insert(class_name.clone());
         }
         Expr::ArrayLit(items, _) => {

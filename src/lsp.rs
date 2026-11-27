@@ -1294,6 +1294,24 @@ fn index_stmt(stmt: &Stmt, ctx: &mut IndexCtx<'_>) {
             }
         }
         Stmt::Echo { value, .. } => index_expr(value, ctx),
+        Stmt::Global { vars, span } => {
+            for v in vars {
+                let v_span = find_ident_span_after(ctx.source, *span, &format!("${}", v));
+                if let Some(&gid) = ctx.scopes.first().and_then(|s| s.get(v)) {
+                    ctx.idx.add_occ(v_span, v.len() + 1, gid);
+                    ctx.scopes.last_mut().unwrap().insert(v.clone(), gid);
+                } else {
+                    let id = ctx.idx.add_def(
+                        &format!("${}", v),
+                        "variable",
+                        format!("${}: global", v),
+                        v_span,
+                        v.len() + 1,
+                    );
+                    ctx.scopes.last_mut().unwrap().insert(v.clone(), id);
+                }
+            }
+        }
         Stmt::If {
             cond,
             then_branch,

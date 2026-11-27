@@ -79,6 +79,7 @@ function readJsonBody(): mixed {
     return json_decode($raw, true);
 }
 
+function main(): void {
 $repo = new TaskRepository(__DIR__ . '/tasks.db');
 
 $method: string = strtoupper(strval($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -187,4 +188,5 @@ if ($segCount === 1) {
     }
 } else {
     sendError(404, 'Endpoint not found');
+}
 }

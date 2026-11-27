@@ -185,17 +185,21 @@ impl TypeChecker {
         // PHP built-in constants & superglobals
         self.constants.insert("PHP_URL_PATH".to_string(), Type::Int);
         self.constants.insert("__DIR__".to_string(), Type::String);
-        self.declare_var(
+        for sg in [
             "_SERVER",
-            Type::Dict(Box::new(Type::String), Box::new(Type::Mixed)),
-        );
-        self.declare_var(
             "_GET",
-            Type::Dict(Box::new(Type::String), Box::new(Type::Mixed)),
-        );
-        self.declare_var(
+            "_POST",
             "_COOKIE",
-            Type::Dict(Box::new(Type::String), Box::new(Type::Mixed)),
+            "_FILES",
+            "_REQUEST",
+            "_SESSION",
+            "GLOBALS",
+        ] {
+            self.declare_var(sg, Type::Dict(Box::new(Type::String), Box::new(Type::Mixed)));
+        }
+        self.declare_var(
+            "_ENV",
+            Type::Dict(Box::new(Type::String), Box::new(Type::String)),
         );
         self.functions.insert(
             "setcookie".to_string(),
@@ -1006,6 +1010,18 @@ impl TypeChecker {
             }
             Stmt::Echo { value, .. } => {
                 self.check_expr(value)?;
+                Ok(())
+            }
+            Stmt::Global { vars, .. } => {
+                for v in vars {
+                    let g_ty = self
+                        .scopes
+                        .first()
+                        .and_then(|s| s.get(v))
+                        .cloned()
+                        .unwrap_or(Type::Mixed);
+                    self.declare_var(v, g_ty);
+                }
                 Ok(())
             }
             Stmt::If {

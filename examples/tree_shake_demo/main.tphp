@@ -1,0 +1,12 @@
+<?php
+
+import { AppRunner } from './lib1.tphp';
+
+function localDead(): void {
+    echo 'LOCAL_DEAD';
+}
+
+function main(): void {
+    $app = new AppRunner();
+    echo $app->run('TypePHP') . "\n";
+}

@@ -275,3 +275,28 @@ fn warns_on_unguarded_optional_shape_key_and_explains_missing_key() {
     assert!(err.message.contains("available keys: [id, name]"));
     assert!(err.message.contains("Undefined array key"));
 }
+
+#[test]
+fn tc_ok_php_superglobals_and_global_stmt() {
+    let src = r#"<?php
+$appVersion = "1.0";
+$debugFlag = true;
+
+function readInputs(): mixed {
+    global $appVersion, $debugFlag;
+    $p = $_POST['name'] ?? '';
+    $s = $_SESSION['user'] ?? null;
+    $f = $_FILES['avatar'] ?? null;
+    $r = $_REQUEST['id'] ?? '';
+    $e = $_ENV['APP_ENV'] ?? 'prod';
+    $g = $GLOBALS['appVersion'] ?? $appVersion;
+    if ($debugFlag) {
+        return $p;
+    }
+    return [$s, $f, $r, $e, $g];
+}
+"#;
+    check(src).expect("superglobals and global statement should typecheck");
+    let php = typephp::compile(src).expect("should emit php");
+    assert!(php.contains("global $appVersion, $debugFlag;"));
+}
