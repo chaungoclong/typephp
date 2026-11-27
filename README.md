@@ -56,6 +56,25 @@ echo formatId($user['id']) . ' - ' . $user['name'];
 
 ## Cài đặt & Sử dụng CLI
 
+### Cài đặt tự động 1 lệnh (giống `rustup`)
+
+Script tự động cài đặt đầy đủ môi trường (**PHP**, **Composer**, **PHPStan Level 9**, **tphpc**, và tự cài **Rust** nếu cần build từ source) và cấu hình `PATH`:
+
+**Linux & macOS** (`x86_64` / `arm64`):
+```bash
+curl -fsSL https://raw.githubusercontent.com/chaungoclong/typephp/main/install/install.sh | bash
+```
+
+**Windows (PowerShell)**:
+```powershell
+irm https://raw.githubusercontent.com/chaungoclong/typephp/main/install/install.ps1 | iex
+```
+
+Hoặc cài đặt trực tiếp từ source bằng Cargo:
+```bash
+cargo install --path .
+```
+
 ### Biên dịch & Kiểm thử
 
 ```bash

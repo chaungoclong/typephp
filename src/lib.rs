@@ -269,6 +269,12 @@ fn find_phpstan(entry: &Path) -> Option<PathBuf> {
     if fw_candidate.is_file() {
         return Some(fw_candidate);
     }
+    if let Ok(home) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
+        let global_phpstan = PathBuf::from(home).join(".typephp/vendor/bin/phpstan");
+        if global_phpstan.is_file() {
+            return Some(global_phpstan);
+        }
+    }
     if Command::new("phpstan")
         .arg("--version")
         .output()
