@@ -14,7 +14,8 @@ fn print_usage() {
            --mode <preserve|bundle>  Keep directory structure or bundle into 1 file (default: preserve)\n  \
            --bundle                  Shorthand for --mode bundle\n  \
            --minify                  Minify emitted PHP output\n  \
-           --check                   Type-check only without emitting PHP"
+           --check                   Type-check only without emitting PHP\n  \
+           --lsp                     Start TypePHP Language Server (LSP over stdio)"
     );
 }
 
@@ -23,6 +24,11 @@ fn main() {
     if args.is_empty() || args.iter().any(|a| a == "--help" || a == "-h") {
         print_usage();
         process::exit(1);
+    }
+
+    if args.iter().any(|a| a == "--lsp") {
+        typephp::lsp::run_lsp_server();
+        return;
     }
 
     let mut input: Option<PathBuf> = None;

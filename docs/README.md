@@ -8,6 +8,7 @@
 2. [Thiết kế ngôn ngữ & Kiến trúc Compiler (`architecture.md`)](architecture.md)
 3. [Trình biên dịch `tphpc` & Tuỳ chọn CLI (`compiler-cli.md`)](compiler-cli.md)
 4. [PSR-7 Micro-Framework & Validation (`psr7-microfw.md`)](psr7-microfw.md)
+5. [Language Server (LSP), VS Code Extension & Tooling (`lsp-and-tooling.md`)](lsp-and-tooling.md)
 
 ---
 
