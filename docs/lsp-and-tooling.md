@@ -1,5 +1,7 @@
 # Language Server (LSP), VS Code Extension & Tooling
 
+> 🇻🇳 Tiếng Việt | [🇺🇸 English](en/lsp-and-tooling.md)
+
 Tài liệu này giải thích chi tiết cách hoạt động của **TypePHP Language Server (`tphpc --lsp`)**, **VS Code Extension (`editors/vscode-typephp/`)**, cùng các công cụ cài đặt và môi trường phát triển đi kèm.
 
 ---
