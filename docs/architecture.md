@@ -1,5 +1,7 @@
 # Thiết kế Ngôn ngữ & Kiến trúc Compiler (`tphpc`)
 
+> 🇻🇳 Tiếng Việt | [🇺🇸 English](en/architecture.md)
+
 Tài liệu này mô tả triết lý thiết kế ngôn ngữ **TypePHP** và cơ chế hoạt động chi tiết của từng module trong trình biên dịch `tphpc` (viết bằng Rust thuần, không phụ thuộc crate ngoài).
 
 ---
@@ -85,7 +87,8 @@ Các cơ chế nổi bật:
 
 ### `src/codegen.rs` — Bộ sinh mã PHP (`Codegen`)
 - **`emit_program_with_aliases`** (`--mode preserve`): sinh từng file `.php` với `declare(strict_types=1);`, chuẩn **PSR-12** (Allman braces cho class/interface/enum/function/method, khoảng trắng sau `fn`, single trailing newline).
-- **`emit_bundle`** (`--mode bundle`): gộp nhiều module thành 1 file `.php`, tự động bọc các `namespace` bằng cú pháp `namespace ... { ... }` và bỏ qua `require_once` nội bộ `.tphp`.
+- **`emit_bundle`** (`--mode bundle`): gộp nhiều module thành 1 file `.php`, tự động bọc các `namespace` bằng cú pháp `namespace ... { ... }`, bỏ qua `require_once` nội bộ `.tphp`, và chạy **`compute_reachable_symbols`** (BFS tree-shaking từ `main()` / top-level `Stmt`) để loại bỏ toàn bộ khai báo không được sử dụng.
+- **`entry_auto_main_call`**: tự động phát sinh `main();` hoặc `exit(main());` (hỗ trợ cả `main(string[] $args)` và `main(int $argc, string[] $argv)`) ở cuối file entrypoint khi có định nghĩa `function main(...)`.
 - **`format_phpstan_type` & `emit_fn_phpdoc`**: tự động sinh `@var`, `@param`, `@return`, `@template` (`list<T>`, `array<K, V>`, `array{...}`, `\Closure(...): ...`) để đáp ứng PHPStan Level 9.
 - **Tối ưu import & dead-import elimination**:
   - `collect_used_symbols`: quét toàn bộ AST để loại bỏ các câu lệnh `use ...;` không được sử dụng.

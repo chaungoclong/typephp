@@ -1,6 +1,8 @@
 # Tài liệu TypePHP (`tphp`)
 
-**TypePHP** là ngôn ngữ lập trình kiểu tĩnh mạnh (lấy cảm hứng từ TypeScript) giữ nguyên phong cách cú pháp **PHP** và biên dịch sang mã **PHP 8.x** (`declare(strict_types=1);`) an toàn, tối ưu hiệu suất, vượt qua **PHPStan Level 9** và chuẩn **PSR-12**.
+> 🇻🇳 Tiếng Việt | [🇺🇸 English](en/README.md)
+
+**TypePHP** là ngôn ngữ lập trình kiểu tĩnh mạnh (lấy cảm hứng từ TypeScript) giữ nguyên phong cách cú pháp **PHP** và biên dịch sang mã **PHP 8.1–8.4** (`declare(strict_types=1);`) an toàn, tối ưu hiệu suất, vượt qua **PHPStan Level 9** và chuẩn **PSR-12**.
 
 ## Mục lục
 
@@ -26,13 +28,14 @@ cargo test
 # Biên dịch giữ nguyên cấu trúc thư mục + chạy PHPStan Level 9
 cargo run -- examples/blog_app/public/index.tphp
 
-# Biên dịch gộp thành 1 file + minify (PHP, biến/hàm, HTML/CSS/JS)
+# Biên dịch gộp thành 1 file + tree-shaking + minify (PHP, biến/hàm, HTML/CSS/JS)
 cargo run -- examples/blog_app/public/index.tphp --bundle --minify -o dist/app.php
 ```
 
 ### 3. Các ví dụ đi kèm
 
-- [examples/demo.tphp](../examples/demo.tphp) — Tổng hợp generics, shapes, enums, union narrowing.
+- [examples/demo.tphp](../examples/demo.tphp) — Tổng hợp generics, shapes, enums, union narrowing, `main()`.
+- [examples/tree_shake_demo/](../examples/tree_shake_demo/main.tphp) — Demo tree-shaking bắc cầu 4 tầng (`main -> lib1 -> lib2 -> lib3`).
 - [examples/rest_api/](../examples/rest_api/README.md) — REST API chuẩn REST kết nối SQLite.
 - [examples/psr7_microfw/](../examples/psr7_microfw/README.md) — Micro-framework chuẩn PSR-7 + Composer PSR-4 + Validator.
 - [examples/blog_app/](../examples/blog_app/README.md) — Ứng dụng Blog + Admin (Tailwind CSS, SQLite, Cookie Login).

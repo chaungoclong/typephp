@@ -1,6 +1,8 @@
 # Cú pháp & Hệ thống kiểu TypePHP
 
-TypePHP giữ nguyên các thành phần quen thuộc của PHP (`$var`, `function`, `->`, `::`, `.`, `foreach`, `elseif`, `fn (...) => ...`) và bổ sung hệ thống kiểu tĩnh kiểm tra lúc biên dịch.
+> 🇻🇳 Tiếng Việt | [🇺🇸 English](en/language-syntax.md)
+
+TypePHP giữ nguyên các thành phần quen thuộc của PHP (`$var`, `function`, `->`, `::`, `.`, `foreach`, `elseif`, `fn (...) => ...`, `global`) và bổ sung hệ thống kiểu tĩnh kiểm tra lúc biên dịch.
 
 ---
 
@@ -117,6 +119,22 @@ namespace TypePhp\BlogApp\Repository;
 import { ServerRequestInterface } from '../../psr7_microfw/src/Http/Message/ServerRequestInterface.tphp';
 use TypePhp\MicroFw\Http\Message\ServerRequestInterface;
 ```
+
+---
+
+## 6. Superglobals, `global` và Entrypoint `main()`
+
+- **PHP Superglobals**: compiler khai báo sẵn kiểu cho `$_SERVER`, `$_GET`, `$_POST`, `$_COOKIE`, `$_SESSION`, `$_FILES`, `$_REQUEST`, `$_ENV` và `$GLOBALS`.
+- **Từ khoá `global`**: hỗ trợ `global $db, $config;` bên trong hàm/method để bind biến từ global scope.
+- **Hàm `main()` tuỳ chọn (kiểu Go / C)**:
+  ```php
+  function main(): void {
+      echo "Hello TypePHP\n";
+  }
+  // Hoặc trả exit code: function main(): int { return 0; }
+  // Hoặc nhận CLI args: function main(string[] $args): int { ... }
+  ```
+  Compiler tự động phát sinh `main();` (hoặc `exit(main());`) ở cuối file entrypoint nếu chưa tự gọi ở top-level.
 
 - `import`: compiler tự động duyệt cây phụ thuộc `.tphp`, kiểm tra kiểu chéo giữa các file và biên dịch toàn bộ module liên quan.
 - `use` không sử dụng sẽ tự động bị loại bỏ khi sinh mã PHP.
