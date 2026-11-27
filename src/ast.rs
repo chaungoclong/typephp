@@ -190,6 +190,10 @@ pub enum Stmt {
         value: Expr,
         span: Span,
     },
+    Global {
+        vars: Vec<String>,
+        span: Span,
+    },
     If {
         cond: Expr,
         then_branch: Vec<Stmt>,

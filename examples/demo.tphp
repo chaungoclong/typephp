@@ -56,12 +56,15 @@ function formatId(int|string|null $id): string {
     return $id;
 }
 
-$count: int = identity<int>(42);
-$box = new Box<string>("TypePHP");
-$title: string = $box->get();
+function main(): void {
+    $count: int = identity<int>(42);
+    $box = new Box<string>("TypePHP");
+    $title: string = $box->get();
 
-$user: UserShape = ['id' => 1, 'name' => 'Long'];
-$acc = new Account($user['name'], Role::Admin);
+    $user: UserShape = ['id' => 1, 'name' => 'Long'];
+    $acc = new Account($user['name'], Role::Admin);
 
-$double = fn(int $n): int => $n * 2;
-$res: int = $double($count);
+    $double = fn(int $n): int => $n * 2;
+    $res: int = $double($count);
+    echo $title . " - " . $acc->summary() . " - " . (string) $res . "\n";
+}

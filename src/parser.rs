@@ -628,6 +628,29 @@ impl Parser {
                 self.consume_semi();
                 Ok(Stmt::Echo { value, span })
             }
+            TokenKind::Global => {
+                let span = self.advance().span;
+                let mut vars = Vec::new();
+                loop {
+                    if let TokenKind::Var(name) = &self.peek().kind {
+                        let vname = name.clone();
+                        self.advance();
+                        vars.push(vname);
+                    } else {
+                        return Err(CompileError::parse(
+                            "Expected variable after 'global'",
+                            self.peek().span,
+                        ));
+                    }
+                    if self.check(&TokenKind::Comma) {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                self.consume_semi();
+                Ok(Stmt::Global { vars, span })
+            }
             TokenKind::If => self.parse_if_stmt(),
             TokenKind::While => self.parse_while_stmt(),
             TokenKind::ForEach => self.parse_foreach_stmt(),

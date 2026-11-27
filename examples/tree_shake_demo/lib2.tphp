@@ -1,0 +1,26 @@
+<?php
+
+import { PlainFormatter, FormatterInterface, DeadXmlFormatter } from './lib3.tphp';
+
+class DeadMetricsCollector {
+    public function collect(string $name): string {
+        $fmt = new DeadXmlFormatter();
+        return $fmt->format($name);
+    }
+}
+
+class LoggerService {
+    private PlainFormatter $formatter;
+
+    public function __construct() {
+        $this->formatter = new PlainFormatter();
+    }
+
+    public function log(string $msg): string {
+        return $this->formatWith($this->formatter, $msg);
+    }
+
+    private function formatWith(FormatterInterface $fmt, string $msg): string {
+        return $fmt->format($msg);
+    }
+}

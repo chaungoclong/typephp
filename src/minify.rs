@@ -45,6 +45,9 @@ pub fn mangle_programs(programs: &mut [Program], mangle_top_level_fns: bool) {
             });
             for item in &prog.items {
                 if let Item::Function(f) = item {
+                    if f.name == "main" {
+                        continue;
+                    }
                     let key = (ns.clone(), f.name.clone());
                     fn_map.entry(key).or_insert_with(|| {
                         let name = short_fn_ident(fn_idx);
@@ -187,6 +190,11 @@ fn mangle_stmt(
         }
         Stmt::Echo { value, .. } => {
             mangle_expr(value, m, ns, fn_map);
+        }
+        Stmt::Global { vars, .. } => {
+            for v in vars {
+                m.map.insert(v.clone(), v.clone());
+            }
         }
         Stmt::If {
             cond,
